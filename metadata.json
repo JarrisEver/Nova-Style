@@ -1,0 +1,6 @@
+{
+  "name": "NOVAStyle – NS-Management",
+  "description": "Sistema de Gestión Comercial e Inventario integrado para la optimización de procesos operativos en tiempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
