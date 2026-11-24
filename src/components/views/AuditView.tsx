@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { ShieldCheck, Search, Filter, Clock, UserCheck } from 'lucide-react';
+import { ShieldCheck, Search } from 'lucide-react';
+import { ModuleHeader, StaggerSection } from '../ui/MotionPrimitives';
 
 export const AuditView: React.FC = () => {
   const { auditLogs } = useApp();
@@ -8,7 +9,18 @@ export const AuditView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedModule, setSelectedModule] = useState('TODOS');
 
-  const modules = ['TODOS', 'Ventas', 'Caja', 'Inventario', 'Compras', 'Devoluciones', 'Productos', 'Promociones', 'Usuarios', 'Seguridad'];
+  const modules = [
+    'TODOS',
+    'Ventas',
+    'Caja',
+    'Inventario',
+    'Compras',
+    'Devoluciones',
+    'Productos',
+    'Promociones',
+    'Usuarios',
+    'Seguridad',
+  ];
 
   const filteredLogs = auditLogs.filter((log) => {
     const q = searchTerm.toLowerCase();
@@ -24,41 +36,38 @@ export const AuditView: React.FC = () => {
   });
 
   return (
-    <div className="space-y-5">
-      {/* Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">
-            Registro y Bitácora de Auditoría del Sistema
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Trazabilidad inmutable de todas las transacciones operativas, autorizaciones y cierres
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-800">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Bitácora activa ({auditLogs.length} eventos registrados)</span>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <ModuleHeader
+        kicker="TRAZABILIDAD INMUTABLE • AUDITORÍA"
+        title="Bitácora de Auditoría del Sistema"
+        subtitle="Registro cronológico de transacciones operativas, autorizaciones, cierres de caja y movimientos"
+        actions={
+          <div className="flex items-center gap-2 bg-zinc-950 text-white px-3.5 py-2 rounded-lg text-xs font-semibold border border-zinc-800 whitespace-nowrap shrink-0">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>
+              Bitácora activa (<span className="font-mono tabular-nums">{auditLogs.length}</span> eventos)
+            </span>
+          </div>
+        }
+      />
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap gap-3 items-center">
+      <StaggerSection className="bg-white p-4 rounded-xl border border-zinc-200 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[220px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por acción, número de comprobante, usuario o detalle..."
-            className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600"
           />
         </div>
 
         <select
           value={selectedModule}
           onChange={(e) => setSelectedModule(e.target.value)}
-          className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none text-slate-700 font-medium"
+          className="px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600 text-zinc-800 font-semibold"
         >
           {modules.map((m) => (
             <option key={m} value={m}>
@@ -66,13 +75,13 @@ export const AuditView: React.FC = () => {
             </option>
           ))}
         </select>
-      </div>
+      </StaggerSection>
 
       {/* Audit Log Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <StaggerSection delay={0.08} className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+            <thead className="bg-zinc-950 text-zinc-300 border-b border-zinc-800">
               <tr>
                 <th className="px-4 py-3 font-semibold">Fecha / Hora</th>
                 <th className="px-4 py-3 font-semibold">Usuario Responsable</th>
@@ -83,38 +92,39 @@ export const AuditView: React.FC = () => {
                 <th className="px-5 py-3 font-semibold">Detalles de la Operación</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
+            <tbody className="divide-y divide-zinc-100 text-zinc-700">
               {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50/70 transition">
-                  <td className="px-4 py-3 font-mono text-[11px] text-slate-600 whitespace-nowrap">
-                    {log.date} <span className="text-slate-400">{log.time}</span>
+                <tr key={log.id} className="hover:bg-zinc-50 transition">
+                  <td className="px-4 py-3 font-mono tabular-nums text-[11px] text-zinc-600 whitespace-nowrap">
+                    {log.date} <span className="text-zinc-400">{log.time}</span>
                   </td>
-                  <td className="px-4 py-3 font-semibold text-slate-900">
-                    {log.userName}
-                  </td>
+                  <td className="px-4 py-3 font-semibold text-zinc-950">{log.userName}</td>
                   <td className="px-3 py-3">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
                       {log.role}
                     </span>
                   </td>
-                  <td className="px-3 py-3 font-medium text-slate-800">
-                    {log.module}
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-blue-700">
-                    {log.action}
-                  </td>
-                  <td className="px-3 py-3 font-mono font-bold text-slate-700 text-[11px]">
+                  <td className="px-3 py-3 font-medium text-zinc-800">{log.module}</td>
+                  <td className="px-4 py-3 font-semibold text-red-600">{log.action}</td>
+                  <td className="px-3 py-3 font-mono tabular-nums font-bold text-zinc-900 text-[11px]">
                     {log.reference}
                   </td>
-                  <td className="px-5 py-3 text-slate-600 leading-relaxed text-[11px] max-w-sm">
+                  <td className="px-5 py-3 text-zinc-600 leading-relaxed text-[11px] max-w-sm">
                     {log.details || '—'}
                   </td>
                 </tr>
               ))}
+              {filteredLogs.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-400">
+                    No existen registros de auditoría para este criterio.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-      </div>
+      </StaggerSection>
     </div>
   );
 };

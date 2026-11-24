@@ -1,18 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
+import { ModuleHeader } from '../ui/MotionPrimitives';
 import {
   RotateCcw,
   Search,
-  CheckCircle,
-  AlertTriangle,
   ShieldAlert,
   ArrowRight,
-  Clock,
-  UserCheck,
   X,
-  FileText,
 } from 'lucide-react';
-import { ReturnRecord, Sale, SaleItem } from '../../types';
+import { Sale } from '../../types';
 
 export const ReturnsView: React.FC = () => {
   const {
@@ -28,13 +24,11 @@ export const ReturnsView: React.FC = () => {
   const [saleSearchQuery, setSaleSearchQuery] = useState('');
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
-  // Return Form State
   const [selectedItemVariantId, setSelectedItemVariantId] = useState<string>('');
   const [returnQuantity, setReturnQuantity] = useState<number>(1);
   const [returnReason, setReturnReason] = useState<string>('Talla inadecuada / cambio de modelo');
   const [returnResolution, setReturnResolution] = useState<'CAMBIO' | 'DEVOLUCION_EFECTIVO' | 'NOTA_CREDITO'>('CAMBIO');
 
-  // Search matching sales
   const matchedSales = useMemo(() => {
     if (!saleSearchQuery.trim()) return [];
     const q = saleSearchQuery.toLowerCase();
@@ -46,7 +40,6 @@ export const ReturnsView: React.FC = () => {
     );
   }, [sales, saleSearchQuery]);
 
-  // Selected item in sale
   const selectedSaleItem = selectedSale?.items.find(
     (it) => it.variantId === selectedItemVariantId
   );
@@ -90,58 +83,48 @@ export const ReturnsView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">
-            Devoluciones, Cambios & Notas de Crédito (CU-06)
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Gestión de cambios de mercadería con validación de venta de origen y reintegro al Kardex
-          </p>
-        </div>
-      </div>
+      <ModuleHeader
+        kicker="Postventa & Supervisión · CU-06"
+        title="Devoluciones, Cambios & Notas de Crédito"
+        subtitle="Validación de comprobante de origen, autorización de jefatura y reintegro automático al Kardex."
+      />
 
-      {/* Grid: Left for Initiating return, Right for pending approvals / History */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Form: Search sale & Register Return */}
-        <div className="lg:col-span-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-            <Search className="w-4 h-4 text-blue-600" />
-            <h2 className="text-xs font-bold text-slate-900 uppercase">
-              1. Buscar Venta de Origen (Regla #3)
+        {/* Left Form */}
+        <div className="lg:col-span-6 bg-white p-5 rounded-xl border border-zinc-200 space-y-4">
+          <div className="flex items-center gap-2 pb-2.5 border-b border-zinc-200">
+            <Search className="w-4 h-4 text-red-600" />
+            <h2 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">
+              1. Buscar Venta de Origen
             </h2>
           </div>
 
-          <div className="relative">
-            <input
-              type="text"
-              value={saleSearchQuery}
-              onChange={(e) => setSaleSearchQuery(e.target.value)}
-              placeholder="Buscar por N° comprobante (ej: B001-000411) o DNI cliente..."
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          <input
+            type="text"
+            value={saleSearchQuery}
+            onChange={(e) => setSaleSearchQuery(e.target.value)}
+            placeholder="Buscar por N° comprobante (ej: B001-000411) o DNI..."
+            className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-600/15 focus:border-red-600"
+          />
 
-          {/* Quick matched list */}
           {matchedSales.length > 0 && !selectedSale && (
-            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-48 overflow-y-auto">
+            <div className="border border-zinc-200 rounded-lg divide-y divide-zinc-100 max-h-48 overflow-y-auto">
               {matchedSales.map((sale) => (
                 <div
                   key={sale.id}
                   onClick={() => handleSelectSale(sale)}
-                  className="p-2.5 hover:bg-blue-50/60 cursor-pointer transition flex items-center justify-between text-xs"
+                  className="p-2.5 hover:bg-zinc-50 cursor-pointer transition flex items-center justify-between text-xs"
                 >
                   <div>
-                    <span className="font-bold font-mono text-blue-700">{sale.saleNumber}</span>
-                    <span className="text-slate-500 text-[11px] ml-2">{sale.date}</span>
-                    <div className="text-slate-800 font-medium">{sale.clientName}</div>
+                    <span className="font-bold font-mono text-red-600">{sale.saleNumber}</span>
+                    <span className="text-zinc-400 text-[11px] ml-2 font-mono">{sale.date}</span>
+                    <div className="text-zinc-900 font-medium">{sale.clientName}</div>
                   </div>
                   <div className="text-right">
-                    <span className="font-bold text-slate-900 font-mono">
+                    <span className="font-bold text-zinc-950 font-mono tabular-nums">
                       {storeSettings.currency} {sale.total.toFixed(2)}
                     </span>
-                    <div className="text-[10px] text-blue-600 font-semibold flex items-center gap-0.5 justify-end">
+                    <div className="text-[10px] text-red-600 font-semibold flex items-center gap-0.5 justify-end">
                       <span>Seleccionar</span>
                       <ArrowRight className="w-3 h-3" />
                     </div>
@@ -151,46 +134,40 @@ export const ReturnsView: React.FC = () => {
             </div>
           )}
 
-          {/* Selected Sale Preview & Return Form */}
           {selectedSale ? (
-            <form onSubmit={handleProcessReturnSubmit} className="space-y-4 pt-2 border-t border-slate-100 text-xs">
-              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between">
+            <form onSubmit={handleProcessReturnSubmit} className="space-y-4 pt-2 border-t border-zinc-100 text-xs">
+              <div className="p-3 bg-zinc-950 text-white rounded-lg flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-blue-700 font-bold uppercase">
+                  <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider">
                     Comprobante Seleccionado
                   </span>
-                  <div className="font-mono font-bold text-slate-900 text-sm">
-                    {selectedSale.saleNumber}
-                  </div>
-                  <div className="text-[11px] text-slate-600">
-                    {selectedSale.clientName} ({selectedSale.clientDocType}: {selectedSale.clientDoc}) • Total: {storeSettings.currency} {selectedSale.total.toFixed(2)}
+                  <div className="font-mono font-bold text-sm">{selectedSale.saleNumber}</div>
+                  <div className="text-[11px] text-zinc-300">
+                    {selectedSale.clientName} · {selectedSale.clientDocType}: {selectedSale.clientDoc}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedSale(null)}
-                  className="p-1 text-slate-400 hover:text-slate-700 rounded"
+                  className="p-1 text-zinc-400 hover:text-white rounded"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Select Item */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Producto a Devolver *
-                </label>
+                <label className="block font-semibold text-zinc-700 mb-1">Producto a Devolver *</label>
                 <select
                   value={selectedItemVariantId}
                   onChange={(e) => {
                     setSelectedItemVariantId(e.target.value);
                     setReturnQuantity(1);
                   }}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
                 >
                   {selectedSale.items.map((item) => (
                     <option key={item.variantId} value={item.variantId}>
-                      {item.productName} ({item.variantDesc}) - Comprados: {item.quantity} unid. - P.Unit: {storeSettings.currency} {item.unitPrice.toFixed(2)}
+                      {item.productName} ({item.variantDesc}) · Cant: {item.quantity} · {storeSettings.currency} {item.unitPrice.toFixed(2)}
                     </option>
                   ))}
                 </select>
@@ -198,8 +175,8 @@ export const ReturnsView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Cantidad a Devolver (Máx: {maxReturnQty})
+                  <label className="block font-semibold text-zinc-700 mb-1">
+                    Cantidad (Máx: {maxReturnQty})
                   </label>
                   <input
                     type="number"
@@ -212,18 +189,18 @@ export const ReturnsView: React.FC = () => {
                         Math.min(maxReturnQty, Math.max(1, parseInt(e.target.value) || 1))
                       )
                     }
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-center"
+                    className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg font-bold font-mono text-center"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Tipo de Resolución
-                  </label>
+                  <label className="block font-semibold text-zinc-700 mb-1">Resolución</label>
                   <select
                     value={returnResolution}
-                    onChange={(e) => setReturnResolution(e.target.value as any)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-semibold"
+                    onChange={(e) =>
+                      setReturnResolution(e.target.value as 'CAMBIO' | 'DEVOLUCION_EFECTIVO' | 'NOTA_CREDITO')
+                    }
+                    className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg font-semibold"
                   >
                     <option value="CAMBIO">Cambio por otra prenda</option>
                     <option value="NOTA_CREDITO">Emisión de Nota de Crédito</option>
@@ -233,120 +210,111 @@ export const ReturnsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Motivo de la Devolución *
-                </label>
+                <label className="block font-semibold text-zinc-700 mb-1">Motivo *</label>
                 <input
                   type="text"
                   required
                   value={returnReason}
                   onChange={(e) => setReturnReason(e.target.value)}
-                  placeholder="Ej: Falla de costura, cambio de talla, disconformidad..."
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg"
+                  className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
                 />
               </div>
 
-              {/* Supervisor warning notice if > S/ 200 */}
               {estimatedRefund > 200 && !isSupervisorOrAdmin && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 flex items-start gap-2">
-                  <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 flex items-start gap-2">
+                  <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <div className="font-bold">Requiere Autorización de Supervisor (Regla #6)</div>
+                    <div className="font-bold">Requiere Autorización de Supervisor</div>
                     <p className="text-[11px] mt-0.5">
-                      El monto (S/ {estimatedRefund.toFixed(2)}) supera S/ 200.00. Quedará en estado &ldquo;Pendiente de aprobación&rdquo;.
+                      Monto ({storeSettings.currency} {estimatedRefund.toFixed(2)}) supera S/ 200.00.
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between font-bold">
+              <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg flex items-center justify-between font-bold tabular-nums">
                 <span>Monto a Reintegrar:</span>
-                <span className="text-base text-blue-700 font-mono">
+                <span className="text-base text-red-600 font-mono">
                   {storeSettings.currency} {estimatedRefund.toFixed(2)}
                 </span>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition flex items-center justify-center gap-1.5"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>Registrar Solicitud de Devolución</span>
               </button>
             </form>
           ) : (
-            <div className="p-8 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-xl">
+            <div className="p-8 text-center text-zinc-400 text-xs border border-dashed border-zinc-200 rounded-lg">
               Ingrese un N° de comprobante arriba o busque un cliente para cargar la venta.
             </div>
           )}
         </div>
 
-        {/* Right Section: Pending approvals & Return Records */}
-        <div className="lg:col-span-6 space-y-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h2 className="text-xs font-bold text-slate-900 uppercase">
-                2. Historial de Devoluciones & Aprobaciones
+        {/* Right History */}
+        <div className="lg:col-span-6">
+          <div className="bg-white p-5 rounded-xl border border-zinc-200 space-y-3">
+            <div className="flex items-center justify-between pb-2.5 border-b border-zinc-200">
+              <h2 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">
+                2. Historial & Aprobaciones
               </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+              <span className="text-xs font-mono font-semibold text-zinc-500 tabular-nums">
                 {returns.length} registros
               </span>
             </div>
 
-            <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[540px] overflow-y-auto pr-1">
               {returns.map((ret) => (
                 <div
                   key={ret.id}
                   className={`p-3.5 rounded-xl border text-xs space-y-2 transition ${
                     ret.status === 'PENDIENTE_SUPERVISOR'
-                      ? 'border-amber-300 bg-amber-50/50'
-                      : 'border-slate-200 bg-white'
+                      ? 'border-amber-300 bg-amber-50/40'
+                      : 'border-zinc-200 bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-blue-700 font-mono">
-                        {ret.returnNumber}
-                      </span>
-                      <span className="text-slate-400 font-mono text-[10px]">
-                        (Venta {ret.saleNumber})
+                      <span className="font-bold text-red-600 font-mono">{ret.returnNumber}</span>
+                      <span className="text-zinc-400 font-mono text-[10px]">
+                        ({ret.saleNumber})
                       </span>
                     </div>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
                         ret.status === 'APROBADA'
-                          ? 'bg-emerald-100 text-emerald-800'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                           : ret.status === 'PENDIENTE_SUPERVISOR'
-                          ? 'bg-amber-100 text-amber-800 animate-pulse'
-                          : 'bg-rose-100 text-rose-800'
+                          ? 'bg-amber-50 text-amber-800 border-amber-200'
+                          : 'bg-red-50 text-red-700 border-red-200'
                       }`}
                     >
-                      {ret.status === 'PENDIENTE_SUPERVISOR'
-                        ? 'Pendiente de Supervisor'
-                        : ret.status}
+                      {ret.status === 'PENDIENTE_SUPERVISOR' ? 'Pendiente Supervisor' : ret.status}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center text-slate-700">
+                  <div className="flex justify-between items-center text-zinc-700">
                     <div>
-                      <div className="font-semibold text-slate-900">{ret.productName}</div>
-                      <div className="text-[11px] text-slate-500">
-                        {ret.variantDesc} • Cantidad: {ret.quantity} unid.
+                      <div className="font-semibold text-zinc-950">{ret.productName}</div>
+                      <div className="text-[11px] text-zinc-500">
+                        {ret.variantDesc} · Cant: {ret.quantity}
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="font-mono font-bold text-slate-900">
+                      <span className="font-mono font-bold text-zinc-950 tabular-nums">
                         {storeSettings.currency} {ret.refundAmount.toFixed(2)}
                       </span>
-                      <div className="text-[10px] text-slate-500">{ret.resolution}</div>
+                      <div className="text-[10px] text-zinc-500">{ret.resolution}</div>
                     </div>
                   </div>
 
-                  <div className="text-[11px] text-slate-500 italic bg-white/70 p-1.5 rounded border border-slate-100">
-                    Motivo: &ldquo;{ret.reason}&rdquo;
+                  <div className="text-[11px] text-zinc-600 bg-zinc-50 p-2 rounded border border-zinc-100">
+                    Motivo: "{ret.reason}"
                   </div>
 
-                  {/* Supervisor action bar if pending */}
                   {ret.status === 'PENDIENTE_SUPERVISOR' && (
                     <div className="pt-2 border-t border-amber-200/80 flex items-center justify-between">
                       <span className="text-[11px] text-amber-900 font-medium">
@@ -355,22 +323,22 @@ export const ReturnsView: React.FC = () => {
                       {isSupervisorOrAdmin ? (
                         <button
                           onClick={() => approveReturn(ret.id)}
-                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs"
+                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold text-xs"
                         >
-                          ✓ Aprobar y Reintegrar Stock
+                          Aprobar y Reintegrar
                         </button>
                       ) : (
-                        <span className="text-[10px] font-semibold text-slate-500">
-                          (Cambiar a rol Supervisor para aprobar)
+                        <span className="text-[10px] font-semibold text-zinc-500">
+                          Cambiar a Supervisor para aprobar
                         </span>
                       )}
                     </div>
                   )}
 
                   {ret.status === 'APROBADA' && (
-                    <div className="text-[10px] text-slate-400 flex justify-between pt-1">
-                      <span>Procesado por: {ret.processedBy}</span>
-                      <span>Aprobado por: {ret.approvedBy || 'Supervisor'}</span>
+                    <div className="text-[10px] text-zinc-400 flex justify-between pt-1">
+                      <span>Procesado: {ret.processedBy}</span>
+                      <span>Aprobado: {ret.approvedBy || 'Supervisor'}</span>
                     </div>
                   )}
                 </div>

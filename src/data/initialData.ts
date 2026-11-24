@@ -11,7 +11,9 @@ import {
   CashRegister,
   StoreSettings,
   AuditLog,
+  CategoryItem,
 } from '../types';
+import { BRAND_MEDIA, PRODUCT_MEDIA } from '../assets/media';
 
 export const INITIAL_USERS: User[] = [
   {
@@ -22,7 +24,7 @@ export const INITIAL_USERS: User[] = [
     role: 'ADMINISTRADOR',
     status: 'ACTIVO',
     lastLogin: '2026-09-28 16:30',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    avatar: BRAND_MEDIA.avatarExecutivePortrait,
     phone: '+51 987 654 321',
   },
   {
@@ -33,7 +35,7 @@ export const INITIAL_USERS: User[] = [
     role: 'VENDEDOR',
     status: 'ACTIVO',
     lastLogin: '2026-09-28 15:45',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    avatar: BRAND_MEDIA.avatarExecutivePortrait,
     phone: '+51 912 345 678',
   },
   {
@@ -44,7 +46,7 @@ export const INITIAL_USERS: User[] = [
     role: 'CAJERO',
     status: 'ACTIVO',
     lastLogin: '2026-09-28 14:10',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    avatar: BRAND_MEDIA.avatarExecutivePortrait,
     phone: '+51 998 877 665',
   },
   {
@@ -55,7 +57,7 @@ export const INITIAL_USERS: User[] = [
     role: 'ALMACENERO',
     status: 'ACTIVO',
     lastLogin: '2026-09-28 13:20',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    avatar: BRAND_MEDIA.avatarExecutivePortrait,
     phone: '+51 976 543 210',
   },
   {
@@ -66,7 +68,7 @@ export const INITIAL_USERS: User[] = [
     role: 'COMPRADOR',
     status: 'ACTIVO',
     lastLogin: '2026-09-28 12:00',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    avatar: BRAND_MEDIA.avatarExecutivePortrait,
     phone: '+51 934 567 890',
   },
   {
@@ -77,7 +79,7 @@ export const INITIAL_USERS: User[] = [
     role: 'SUPERVISOR',
     status: 'ACTIVO',
     lastLogin: '2026-09-28 16:05',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    avatar: BRAND_MEDIA.avatarExecutivePortrait,
     phone: '+51 965 432 109',
   },
   {
@@ -88,7 +90,7 @@ export const INITIAL_USERS: User[] = [
     role: 'GERENCIA',
     status: 'ACTIVO',
     lastLogin: '2026-09-28 11:15',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    avatar: BRAND_MEDIA.avatarExecutivePortrait,
     phone: '+51 955 667 788',
   },
   {
@@ -99,7 +101,7 @@ export const INITIAL_USERS: User[] = [
     role: 'CLIENTE',
     status: 'ACTIVO',
     lastLogin: '2026-09-28 16:50',
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
+    avatar: BRAND_MEDIA.avatarExecutivePortrait,
     phone: '+51 944 332 211',
   },
 ];
@@ -116,7 +118,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 189.0,
     cost: 95.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.menswear,
     createdAt: '2026-09-01',
     variants: [
       { id: 'var-01-1', sku: 'NS-CAM-OXF-BL-S', size: 'S', color: 'Blanco', model: 'Slim Fit', stock: 14, minStock: 5, location: 'Pasillo A-01' },
@@ -135,7 +137,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 249.0,
     cost: 130.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.menswear,
     createdAt: '2026-09-01',
     variants: [
       { id: 'var-02-1', sku: 'NS-JEA-511-AZ-30', size: '30', color: 'Azul Oscuro', model: '511 Slim', stock: 12, minStock: 4, location: 'Pasillo A-04' },
@@ -154,7 +156,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 199.0,
     cost: 85.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.womenswear,
     createdAt: '2026-09-02',
     variants: [
       { id: 'var-03-1', sku: 'NS-VES-MID-FL-S', size: 'S', color: 'Estampado', model: 'Midi', stock: 10, minStock: 3, location: 'Pasillo B-02' },
@@ -173,7 +175,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 369.0,
     cost: 210.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.footwear,
     createdAt: '2026-09-02',
     variants: [
       { id: 'var-04-1', sku: 'NS-ZAP-AIR-RO-40', size: '40', color: 'Rojo/Blanco', model: 'Air Max SC', stock: 9, minStock: 3, location: 'Calzado C-01' },
@@ -192,7 +194,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 299.0,
     cost: 160.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.menswear,
     createdAt: '2026-09-03',
     variants: [
       { id: 'var-05-1', sku: 'NS-POL-LAC-AZ-M', size: 'M', color: 'Azul Marino', model: 'Classic Fit', stock: 12, minStock: 4, location: 'Pasillo A-02' },
@@ -211,7 +213,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 429.0,
     cost: 240.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.outerwear,
     createdAt: '2026-09-03',
     variants: [
       { id: 'var-06-1', sku: 'NS-CAS-COL-NG-M', size: 'M', color: 'Negro', model: 'Ultralight', stock: 6, minStock: 3, location: 'Pasillo A-07' },
@@ -230,7 +232,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 159.0,
     cost: 70.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.womenswear,
     createdAt: '2026-09-04',
     variants: [
       { id: 'var-07-1', sku: 'NS-BLU-MAN-CH-S', size: 'S', color: 'Champán', model: 'Satin', stock: 11, minStock: 3, location: 'Pasillo B-01' },
@@ -249,7 +251,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 499.0,
     cost: 290.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.footwear,
     createdAt: '2026-09-05',
     variants: [
       { id: 'var-08-1', sku: 'NS-ZAP-ADI-NG-41', size: '41', color: 'Negro Core', model: 'Ultraboost', stock: 5, minStock: 3, location: 'Deportes D-01' },
@@ -268,7 +270,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 219.0,
     cost: 110.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.menswear,
     createdAt: '2026-09-05',
     variants: [
       { id: 'var-09-1', sku: 'NS-PAN-DOC-BG-32', size: '32', color: 'Beige Arena', model: 'Signature Chino', stock: 15, minStock: 4, location: 'Pasillo A-03' },
@@ -287,7 +289,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 549.0,
     cost: 320.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.accessories,
     createdAt: '2026-09-06',
     variants: [
       { id: 'var-10-1', sku: 'NS-CAR-MK-NG-UN', size: 'Única', color: 'Negro', model: 'Jet Set Tote', stock: 6, minStock: 2, location: 'Accesorios E-01' },
@@ -305,7 +307,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 139.0,
     cost: 65.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.accessories,
     createdAt: '2026-09-06',
     variants: [
       { id: 'var-11-1', sku: 'NS-BIL-RC-CA-UN', size: 'Única', color: 'Café', model: 'Bifold Classic', stock: 22, minStock: 5, location: 'Accesorios E-02' },
@@ -323,7 +325,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 189.0,
     cost: 88.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1506619216599-9d16d0903dfd?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.outerwear,
     createdAt: '2026-09-07',
     variants: [
       { id: 'var-12-1', sku: 'NS-LEG-NIK-NG-S', size: 'S', color: 'Negro', model: 'One Tight', stock: 16, minStock: 4, location: 'Deportes D-02' },
@@ -342,7 +344,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 299.0,
     cost: 145.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.womenswear,
     createdAt: '2026-09-08',
     variants: [
       { id: 'var-13-1', sku: 'NS-BLA-ZAR-GR-S', size: 'S', color: 'Gris Plomo', model: 'Oversize Structured', stock: 7, minStock: 3, location: 'Pasillo B-03' },
@@ -361,7 +363,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 499.0,
     cost: 280.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.accessories,
     createdAt: '2026-09-08',
     variants: [
       { id: 'var-14-1', sku: 'NS-LEN-RAY-DO-58', size: '58mm', color: 'Dorado / G-15', model: 'Aviator RB3025', stock: 10, minStock: 3, location: 'Accesorios E-03' },
@@ -379,7 +381,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 329.0,
     cost: 165.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.outerwear,
     createdAt: '2026-09-09',
     variants: [
       { id: 'var-15-1', sku: 'NS-CAS-LEV-AZ-M', size: 'M', color: 'Azul Medio', model: 'The Trucker', stock: 8, minStock: 3, location: 'Pasillo A-06' },
@@ -398,7 +400,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 279.0,
     cost: 140.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.footwear,
     createdAt: '2026-09-10',
     variants: [
       { id: 'var-16-1', sku: 'NS-ZAP-CAL-NG-40', size: '40', color: 'Negro Brillante', model: 'Derby Oxford', stock: 7, minStock: 3, location: 'Calzado C-02' },
@@ -417,7 +419,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 169.0,
     cost: 78.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.outerwear,
     createdAt: '2026-09-11',
     variants: [
       { id: 'var-17-1', sku: 'NS-POL-PUM-GR-S', size: 'S', color: 'Gris Jaspeado', model: 'Hoodie Fleece', stock: 15, minStock: 4, location: 'Deportes D-03' },
@@ -436,7 +438,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 589.0,
     cost: 310.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.accessories,
     createdAt: '2026-09-12',
     variants: [
       { id: 'var-18-1', sku: 'NS-REL-FOS-PL-44', size: '44mm', color: 'Plata / Azul', model: 'Grant Chrono', stock: 5, minStock: 2, location: 'Accesorios E-04' },
@@ -454,7 +456,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 149.0,
     cost: 65.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.menswear,
     createdAt: '2026-09-12',
     variants: [
       { id: 'var-19-1', sku: 'NS-SHO-TOM-RO-M', size: 'M', color: 'Rojo Corporativo', model: 'Swim Short', stock: 8, minStock: 3, location: 'Pasillo A-05' },
@@ -472,7 +474,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 179.0,
     cost: 75.0,
     status: 'ACTIVO',
-    image: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=500&auto=format&fit=crop&q=80',
+    image: PRODUCT_MEDIA.womenswear,
     createdAt: '2026-09-13',
     variants: [
       { id: 'var-20-1', sku: 'NS-FAL-MAN-DO-S', size: 'S', color: 'Dorado Suave', model: 'Plissé Midi', stock: 6, minStock: 3, location: 'Pasillo B-04' },
@@ -715,21 +717,21 @@ export const INITIAL_PROMOTIONS: Promotion[] = [
     targetType: 'GENERAL',
     minPurchaseAmount: 100,
     startDate: '2026-09-01',
-    endDate: '2026-10-31',
+    endDate: '2026-12-31',
     status: 'ACTIVA',
     description: '10% de descuento en el total para compras superiores a S/ 100.',
   },
   {
     id: 'pro-02',
     code: 'SUPERMODA20',
-    name: 'Campaña Primavera 20% Dama',
+    name: 'Campaña Temporada 20% Dama',
     type: 'PORCENTAJE',
     value: 20,
     targetType: 'CATEGORIA',
     targetValue: 'Ropa Mujer',
     minPurchaseAmount: 150,
     startDate: '2026-09-15',
-    endDate: '2026-10-15',
+    endDate: '2026-12-31',
     status: 'ACTIVA',
     description: '20% de descuento en categoría Ropa Mujer.',
   },
@@ -743,7 +745,7 @@ export const INITIAL_PROMOTIONS: Promotion[] = [
     targetValue: 'Ropa Hombre',
     minPurchaseAmount: 220,
     startDate: '2026-09-20',
-    endDate: '2026-10-10',
+    endDate: '2026-12-31',
     status: 'ACTIVA',
     description: 'Descuento directo de S/ 50 en jeans y pantalones para compras desde S/ 220.',
   },
@@ -757,7 +759,7 @@ export const INITIAL_PROMOTIONS: Promotion[] = [
     targetValue: 'Ropa Deportiva',
     minPurchaseAmount: 200,
     startDate: '2026-09-01',
-    endDate: '2026-11-30',
+    endDate: '2026-12-31',
     status: 'ACTIVA',
     description: '15% off en zapatillas y ropa deportiva seleccionada.',
   },
@@ -770,7 +772,7 @@ export const INITIAL_PROMOTIONS: Promotion[] = [
     targetType: 'GENERAL',
     minPurchaseAmount: 180,
     startDate: '2026-09-25',
-    endDate: '2026-10-05',
+    endDate: '2026-12-31',
     status: 'ACTIVA',
     description: 'S/ 30 de descuento directo en cualquier compra mayor a S/ 180.',
   },
@@ -810,7 +812,7 @@ export const INITIAL_PROMOTIONS: Promotion[] = [
     targetValue: 'Accesorios',
     minPurchaseAmount: 120,
     startDate: '2026-09-10',
-    endDate: '2026-10-25',
+    endDate: '2026-12-31',
     status: 'ACTIVA',
     description: '10% en carteras, billeteras y relojería.',
   },
@@ -2487,5 +2489,48 @@ export const INITIAL_AUDIT_LOGS: AuditLog[] = [
     action: 'Ajuste de inventario autorizado',
     reference: 'AJ-2026-012',
     details: 'Ajuste negativo de 1 unidad de Casaca Columbia por merma comprobada',
+  },
+];
+
+export const INITIAL_CATEGORIES: CategoryItem[] = [
+  {
+    id: 'cat-01',
+    name: 'Ropa Hombre',
+    slug: 'ropa-hombre',
+    description: 'Sastrería contemporánea, camisas Oxford de algodón pima, denim clásico y prendas exteriores.',
+    image: PRODUCT_MEDIA.menswear,
+    status: 'ACTIVA',
+  },
+  {
+    id: 'cat-02',
+    name: 'Ropa Mujer',
+    slug: 'ropa-mujer',
+    description: 'Vestidos de temporada, blusas satinadas, blazers ejecutivos y siluetas editoriales.',
+    image: PRODUCT_MEDIA.womenswear,
+    status: 'ACTIVA',
+  },
+  {
+    id: 'cat-03',
+    name: 'Calzado',
+    slug: 'calzado',
+    description: 'Zapatillas urbanas de alto diseño y calzado formal en cuero vacuno lustrado.',
+    image: PRODUCT_MEDIA.footwear,
+    status: 'ACTIVA',
+  },
+  {
+    id: 'cat-04',
+    name: 'Ropa Deportiva',
+    slug: 'ropa-deportiva',
+    description: 'Indumentaria técnica de alto rendimiento, running, leggings compresivos y hoodies.',
+    image: PRODUCT_MEDIA.outerwear,
+    status: 'ACTIVA',
+  },
+  {
+    id: 'cat-05',
+    name: 'Accesorios',
+    slug: 'accesorios',
+    description: 'Marroquinería en cuero genuino, relojería multifunción en acero y gafas de protección UV.',
+    image: PRODUCT_MEDIA.accessories,
+    status: 'ACTIVA',
   },
 ];

@@ -1,10 +1,14 @@
 import React from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { useApp } from '../../context/AppContext';
 import { ActiveView } from '../../types';
+import { BrandLogo } from '../ui/BrandLogo';
+import { Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShoppingCart,
   Package,
+  FolderTree,
   Boxes,
   Truck,
   Building2,
@@ -17,8 +21,8 @@ import {
   UserCog,
   ShieldCheck,
   Settings,
-  Sparkles,
   ChevronRight,
+  Store,
   X,
 } from 'lucide-react';
 
@@ -38,8 +42,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     onlineOrders,
     returns,
   } = useApp();
+  const shouldReduceMotion = useReducedMotion();
 
-  // Metrics for badges
   const lowStockCount = products.reduce((acc, p) => {
     return acc + p.variants.filter((v) => v.stock <= v.minStock).length;
   }, 0);
@@ -51,20 +55,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     id: ActiveView;
     label: string;
     icon: React.ElementType;
-    badge?: React.ReactNode;
+    counter?: string;
+    counterTone?: 'amber' | 'crimson' | 'emerald' | 'neutral';
   }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'pos', label: 'Ventas / POS', icon: ShoppingCart },
     { id: 'products', label: 'Productos', icon: Package },
+    { id: 'categories', label: 'Categorías', icon: FolderTree },
     {
       id: 'inventory',
       label: 'Inventario & Kardex',
       icon: Boxes,
-      badge: lowStockCount > 0 ? (
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-          {lowStockCount}
-        </span>
-      ) : null,
+      counter: lowStockCount > 0 ? String(lowStockCount) : undefined,
+      counterTone: 'amber',
     },
     { id: 'purchases', label: 'Compras', icon: Truck },
     { id: 'suppliers', label: 'Proveedores', icon: Building2 },
@@ -74,37 +77,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       id: 'cash-register',
       label: 'Caja',
       icon: Landmark,
-      badge: (
-        <span
-          className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${
-            cashRegister.isOpen
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-              : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-          }`}
-        >
-          {cashRegister.isOpen ? 'ABIERTA' : 'CERRADA'}
-        </span>
-      ),
+      counter: cashRegister.isOpen ? 'ON' : 'OFF',
+      counterTone: cashRegister.isOpen ? 'emerald' : 'crimson',
     },
     {
       id: 'online-orders',
       label: 'Pedidos Online',
       icon: ShoppingBag,
-      badge: pendingOrdersCount > 0 ? (
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-          {pendingOrdersCount}
-        </span>
-      ) : null,
+      counter: pendingOrdersCount > 0 ? String(pendingOrdersCount) : undefined,
+      counterTone: 'neutral',
     },
     {
       id: 'returns',
       label: 'Devoluciones',
       icon: RotateCcw,
-      badge: pendingReturnsCount > 0 ? (
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse">
-          {pendingReturnsCount}
-        </span>
-      ) : null,
+      counter: pendingReturnsCount > 0 ? String(pendingReturnsCount) : undefined,
+      counterTone: 'crimson',
     },
     { id: 'reports', label: 'Reportes', icon: BarChart3 },
     { id: 'users', label: 'Usuarios & Roles', icon: UserCog },
@@ -114,58 +102,78 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const filteredMenuItems = menuItems.filter((item) => hasAccessToView(item.id));
 
+  const getCounterStyle = (tone: 'amber' | 'crimson' | 'emerald' | 'neutral' | undefined, isActive: boolean) => {
+    if (isActive) {
+      return 'bg-white/15 text-white border-white/25';
+    }
+    switch (tone) {
+      case 'amber':
+        return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+      case 'emerald':
+        return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+      case 'crimson':
+        return 'bg-red-600/20 text-red-300 border-red-500/35';
+      default:
+        return 'bg-zinc-800 text-zinc-300 border-zinc-700';
+    }
+  };
+
   return (
     <>
-      {/* Mobile Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm lg:hidden"
-          onClick={onClose}
-        />
-      )}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-zinc-950/75 backdrop-blur-xs lg:hidden"
+            onClick={onClose}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Main Sidebar */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-slate-900 border-r border-slate-800 text-slate-200 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-zinc-950 border-r border-zinc-800/90 text-zinc-200 flex flex-col transition-transform duration-300 ease-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Brand header */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-800 bg-slate-950/40">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-900/50">
-              <span className="text-white font-extrabold text-lg tracking-wider font-mono">NS</span>
-            </div>
-            <div>
-              <div className="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
-                NOVAStyle
-              </div>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-400">
-                NS-Management
-              </div>
-            </div>
-          </div>
+        {/* Subtle top crimson accent line */}
+        <div className="h-[2px] w-full bg-gradient-to-r from-red-600 via-red-500 to-zinc-900 shrink-0" />
+
+        {/* Brand Header */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-800/80 bg-zinc-950 shrink-0">
+          <button
+            onClick={() => {
+              setActiveView('dashboard');
+              onClose();
+            }}
+            className="text-left focus:outline-none"
+          >
+            <BrandLogo variant="light" size="md" showSubtitle />
+          </button>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg lg:hidden"
+            aria-label="Cerrar menú"
+            className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md lg:hidden transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Current Role Indicator Pill */}
-        <div className="px-4 py-3 bg-slate-950/20 border-b border-slate-800/80">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-slate-400">Perfil en sesión:</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-950 border border-blue-800/60 text-blue-300">
-              {currentUser?.role || 'INVITADO'}
-            </span>
-          </div>
+        {/* Session Profile Strip (Clean typographic metadata, zero pill clutter) */}
+        <div className="px-4 py-3 border-b border-zinc-800/70 bg-zinc-900/50 flex items-center justify-between gap-2 shrink-0">
+          <span className="text-[11px] font-medium text-zinc-400 whitespace-nowrap">
+            Perfil activo
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 font-mono truncate">
+            {currentUser?.role || 'INVITADO'}
+          </span>
         </div>
 
-        {/* Navigation list */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 pb-1">
+        {/* Navigation List */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 px-3 pb-2">
             Módulos del Sistema
           </div>
           {filteredMenuItems.map((item) => {
@@ -179,37 +187,59 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   setActiveView(item.id);
                   onClose();
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all group ${
+                className={`relative w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all group whitespace-nowrap ${
                   isActive
-                    ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/30'
-                    : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+                    ? 'bg-red-600 text-white font-semibold shadow-[0_8px_20px_-6px_rgba(220,38,38,0.55)]'
+                    : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <Icon
-                    className={`w-4 h-4 transition-colors ${
-                      isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-400'
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      isActive ? 'text-white' : 'text-zinc-400 group-hover:text-red-400'
                     }`}
                   />
-                  <span>{item.label}</span>
+                  <span className="truncate">{item.label}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  {item.badge}
-                  {isActive && <ChevronRight className="w-3.5 h-3.5 text-blue-200" />}
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  {item.counter && (
+                    <span
+                      className={`text-[10px] font-mono font-bold tabular-nums px-1.5 py-0.5 rounded border ${getCounterStyle(
+                        item.counterTone,
+                        isActive
+                      )}`}
+                    >
+                      {item.counter}
+                    </span>
+                  )}
+                  {isActive && <ChevronRight className="w-3.5 h-3.5 text-red-100 shrink-0" />}
                 </div>
               </button>
             );
           })}
         </nav>
 
-        {/* Footer info */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/40 text-xs">
-          <div className="flex items-center gap-2 text-slate-400">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-[11px] text-slate-400 font-mono">Servidor POS Activo</span>
-          </div>
-          <div className="text-[10px] text-slate-500 mt-1">
-            v2.4.0 • Tienda Departamental
+        {/* Corporate Footer & Storefront Link */}
+        <div className="px-4 py-3.5 border-t border-zinc-800/80 bg-zinc-950 text-xs shrink-0 space-y-2.5">
+          <Link
+            to="/"
+            onClick={onClose}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white transition text-xs font-semibold"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Store className="w-3.5 h-3.5 text-red-500" />
+              <span>Ir a Tienda Online</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+          </Link>
+          <div>
+            <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+              <span>NS-Management</span>
+              <span className="text-zinc-500">v2.5</span>
+            </div>
+            <div className="text-[10px] text-zinc-500 mt-0.5 truncate">
+              Sede San Isidro · Omnicanal
+            </div>
           </div>
         </div>
       </aside>

@@ -3,7 +3,6 @@ import {
   User,
   Role,
   Product,
-  ProductVariant,
   Supplier,
   Client,
   Promotion,
@@ -19,6 +18,8 @@ import {
   AuditLog,
   ReturnRecord,
   ActiveView,
+  CategoryItem,
+  CartItem,
 } from '../types';
 import {
   INITIAL_USERS,
@@ -33,7 +34,9 @@ import {
   INITIAL_CASH_REGISTER,
   INITIAL_SETTINGS,
   INITIAL_AUDIT_LOGS,
+  INITIAL_CATEGORIES,
 } from '../data/initialData';
+import { BRAND_MEDIA, PRODUCT_MEDIA_BY_CATEGORY, resolveSafeAvatarUrl, resolveSafeMediaUrl } from '../assets/media';
 
 export interface ToastMessage {
   id: string;
@@ -44,15 +47,35 @@ export interface ToastMessage {
 
 interface AppContextType {
   currentUser: User | null;
+  hasAdminAccess: boolean;
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
   login: (username: string) => boolean;
+  loginClient: (identifier: string) => boolean;
+  registerClient: (data: {
+    name: string;
+    documentType: 'DNI' | 'RUC' | 'CE';
+    document: string;
+    phone: string;
+    email: string;
+    address: string;
+    username: string;
+  }) => { success: boolean; error?: string };
+  updateOwnClientProfile: (data: {
+    name: string;
+    phone: string;
+    email: string;
+    address: string;
+    documentType: 'DNI' | 'RUC' | 'CE';
+    document: string;
+  }) => boolean;
   logout: () => void;
   switchRole: (role: Role) => void;
   hasAccessToView: (view: ActiveView) => boolean;
 
   // Data collections
   products: Product[];
+  categories: CategoryItem[];
   suppliers: Supplier[];
   clients: Client[];
   promotions: Promotion[];
@@ -66,21 +89,41 @@ interface AppContextType {
   returns: ReturnRecord[];
   users: User[];
 
+  // Storefront Cart & Checkout
+  cart: CartItem[];
+  appliedPromoCode: string;
+  setAppliedPromoCode: (code: string) => void;
+  addToCart: (item: Omit<CartItem, 'quantity'>, quantity?: number) => boolean;
+  updateCartQuantity: (variantId: string, quantity: number) => void;
+  removeFromCart: (variantId: string) => void;
+  clearCart: () => void;
+  placeOnlineOrder: (checkoutData: {
+    clientName: string;
+    clientEmail: string;
+    clientPhone: string;
+    deliveryAddress: string;
+    clientDocType?: 'DNI' | 'RUC' | 'CE';
+    clientDoc?: string;
+    paymentMethod: string;
+    promoCode?: string;
+    notes?: string;
+  }) => { success: boolean; order?: OnlineOrder; error?: string };
+
   // Toasts
   toasts: ToastMessage[];
   addToast: (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => void;
   removeToast: (id: string) => void;
 
   // Operations / Use Cases
-  // CU-01
   saveProduct: (product: Omit<Product, 'id' | 'createdAt'> & { id?: string }) => { success: boolean; error?: string };
   deleteProduct: (id: string) => void;
 
-  // CU-02 Recepción de mercadería
+  saveCategory: (category: Omit<CategoryItem, 'id' | 'slug'> & { id?: string; slug?: string }) => { success: boolean; error?: string };
+  toggleCategoryStatus: (id: string) => void;
+
   receivePurchaseOrder: (poId: string, receivedNotes?: string) => { success: boolean; error?: string };
   createPurchaseOrder: (poData: Omit<PurchaseOrder, 'id' | 'orderNumber' | 'status'>) => void;
 
-  // CU-03, CU-04, CU-05, CU-11 Ventas y POS
   processSale: (saleData: {
     channel: 'PRESENCIAL' | 'ONLINE';
     clientId: string;
@@ -92,7 +135,6 @@ interface AppContextType {
     receiptType: 'BOLETA' | 'FACTURA' | 'TICKET';
   }) => { success: boolean; sale?: Sale; error?: string };
 
-  // CU-06 Devoluciones
   processReturn: (returnData: {
     saleId: string;
     variantId: string;
@@ -102,14 +144,11 @@ interface AppContextType {
   }) => { success: boolean; requiresApproval?: boolean; error?: string };
   approveReturn: (returnId: string) => { success: boolean; error?: string };
 
-  // CU-07 Caja
   openCashRegister: (initialCash: number) => { success: boolean; error?: string };
   closeCashRegister: (declaredCash: number) => { success: boolean; difference: number; error?: string };
 
-  // CU-09 Pedidos Online
   updateOrderStatus: (orderId: string, newStatus: OnlineOrderStatus) => void;
 
-  // Inventory adjustment / manual movement
   addManualInventoryMovement: (movement: {
     type: 'ENTRADA' | 'SALIDA' | 'AJUSTE' | 'TRANSFERENCIA';
     productId: string;
@@ -118,37 +157,75 @@ interface AppContextType {
     reason: string;
   }) => { success: boolean; error?: string };
 
-  // Promotion CRUD
   savePromotion: (promo: Omit<Promotion, 'id'> & { id?: string }) => void;
   togglePromotionStatus: (id: string) => void;
 
-  // Supplier & Client CRUD
   saveSupplier: (sup: Omit<Supplier, 'id'> & { id?: string }) => void;
   saveClient: (client: Omit<Client, 'id' | 'totalPurchases' | 'totalSpent'> & { id?: string }) => void;
   saveUser: (user: Omit<User, 'id' | 'lastLogin'> & { id?: string }) => void;
   toggleUserStatus: (id: string) => void;
 
-  // Reset to demo initial state
   resetAllData: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Read from localStorage or initial defaults
+  // Visitors start unauthenticated on the public storefront (`/`) unless an explicit session exists
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('ns_user');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* fallback */ }
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed ? { ...parsed, avatar: resolveSafeAvatarUrl(parsed.avatar) } : null;
+      } catch {
+        return null;
+      }
     }
-    return INITIAL_USERS[0]; // Start logged in as Carlos Mendoza (ADMINISTRADOR)
+    return null;
   });
 
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
 
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('ns_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    if (saved) {
+      try {
+        const parsed: Product[] = JSON.parse(saved);
+        return parsed.map((p) => ({
+          ...p,
+          image: resolveSafeMediaUrl(p.image, p.category),
+        }));
+      } catch {
+        return INITIAL_PRODUCTS;
+      }
+    }
+    return INITIAL_PRODUCTS;
+  });
+
+  const [categories, setCategories] = useState<CategoryItem[]>(() => {
+    const saved = localStorage.getItem('ns_categories');
+    if (saved) {
+      try {
+        const parsed: CategoryItem[] = JSON.parse(saved);
+        return parsed.map((c) => ({
+          ...c,
+          image: resolveSafeMediaUrl(c.image, c.name),
+        }));
+      } catch {
+        return INITIAL_CATEGORIES;
+      }
+    }
+    return INITIAL_CATEGORIES;
   });
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
@@ -203,40 +280,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [returns, setReturns] = useState<ReturnRecord[]>(() => {
     const saved = localStorage.getItem('ns_returns');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'ret-01',
-        returnNumber: 'DEV-2026-001',
-        saleId: 'sal-02',
-        saleNumber: 'B001-000411',
-        date: '2026-09-28',
-        clientId: 'cli-02',
-        clientName: 'Mariana Silva Ramos',
-        productId: 'prod-03',
-        productName: 'Vestido Midi Estampado Floral Primavera',
-        variantId: 'var-03-1',
-        variantDesc: 'S / Estampado',
-        sku: 'NS-VES-MID-FL-S',
-        quantity: 1,
-        refundAmount: 179.1,
-        reason: 'Prenda no entalla debidamente',
-        resolution: 'CAMBIO',
-        requiresApproval: false,
-        isApproved: true,
-        approvedBy: 'Valeria Quispe',
-        approvedAt: '2026-09-28 12:40',
-        processedBy: 'Valeria Quispe',
-        status: 'APROBADA',
-      },
-    ];
+    return saved
+      ? JSON.parse(saved)
+      : [
+          {
+            id: 'ret-01',
+            returnNumber: 'DEV-2026-001',
+            saleId: 'sal-02',
+            saleNumber: 'B001-000411',
+            date: '2026-09-28',
+            clientId: 'cli-02',
+            clientName: 'Mariana Silva Ramos',
+            productId: 'prod-03',
+            productName: 'Vestido Midi Estampado Floral Primavera',
+            variantId: 'var-03-1',
+            variantDesc: 'S / Estampado',
+            sku: 'NS-VES-MID-FL-S',
+            quantity: 1,
+            refundAmount: 179.1,
+            reason: 'Prenda no entalla debidamente',
+            resolution: 'CAMBIO',
+            requiresApproval: false,
+            isApproved: true,
+            approvedBy: 'Valeria Quispe',
+            approvedAt: '2026-09-28 12:40',
+            processedBy: 'Valeria Quispe',
+            status: 'APROBADA',
+          },
+        ];
   });
 
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('ns_users_list');
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
+    if (saved) {
+      try {
+        const parsed: User[] = JSON.parse(saved);
+        return parsed.map((u) => ({
+          ...u,
+          avatar: resolveSafeAvatarUrl(u.avatar),
+        }));
+      } catch {
+        return INITIAL_USERS;
+      }
+    }
+    return INITIAL_USERS;
   });
 
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    const saved = localStorage.getItem('ns_cart');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string>('');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const hasAdminAccess =
+    currentUser !== null && currentUser.status === 'ACTIVO' && currentUser.role !== 'CLIENTE';
 
   // Synchronize state with localStorage
   useEffect(() => {
@@ -246,6 +352,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('ns_products', JSON.stringify(products));
   }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem('ns_categories', JSON.stringify(categories));
+  }, [categories]);
 
   useEffect(() => {
     localStorage.setItem('ns_suppliers', JSON.stringify(suppliers));
@@ -295,6 +405,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('ns_users_list', JSON.stringify(users));
   }, [users]);
 
+  useEffect(() => {
+    localStorage.setItem('ns_cart', JSON.stringify(cart));
+  }, [cart]);
+
   // Toast Helpers
   const addToast = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
     const id = Date.now().toString() + Math.random().toString().slice(2, 6);
@@ -315,12 +429,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const timeStr = now.toTimeString().split(' ')[0];
 
     const newLog: AuditLog = {
-      id: 'aud-' + Date.now(),
+      id: 'aud-' + Date.now() + Math.random().toString().slice(2, 5),
       date: dateStr,
       time: timeStr,
-      userId: currentUser?.id || 'sys',
-      userName: currentUser?.name || 'Sistema',
-      role: currentUser?.role || 'ADMINISTRADOR',
+      userId: currentUser?.id || 'storefront',
+      userName: currentUser?.name || 'Cliente Online',
+      role: currentUser?.role || 'CLIENTE',
       module,
       action,
       reference,
@@ -329,66 +443,258 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAuditLogs((prev) => [newLog, ...prev]);
   };
 
-  // Role Permissions Rule Check
+  const requireStaffAccess = (actionName: string): boolean => {
+    if (!currentUser || currentUser.status !== 'ACTIVO' || currentUser.role === 'CLIENTE') {
+      addToast(
+        'error',
+        'Acceso Denegado',
+        `Solo el personal administrativo autorizado puede ejecutar: ${actionName}.`
+      );
+      return false;
+    }
+    return true;
+  };
+
+  // Strict RBAC Role Permissions Rule Check (Clients have ZERO access to Admin Panel)
   const hasAccessToView = (view: ActiveView): boolean => {
-    if (!currentUser) return false;
+    if (!currentUser || currentUser.status !== 'ACTIVO') return false;
     const role = currentUser.role;
+    if (role === 'CLIENTE') return false;
 
     switch (role) {
       case 'ADMINISTRADOR':
-        return true; // Full access
+        return true;
       case 'VENDEDOR':
-        return ['dashboard', 'pos', 'products', 'clients', 'promotions'].includes(view);
+        return ['dashboard', 'pos', 'products', 'categories', 'clients', 'promotions'].includes(view);
       case 'CAJERO':
-        return ['dashboard', 'cash-register', 'pos', 'sales'].includes(view) || view === 'cash-register';
+        return ['dashboard', 'cash-register', 'pos'].includes(view);
       case 'ALMACENERO':
         return ['dashboard', 'inventory', 'purchases'].includes(view);
       case 'COMPRADOR':
-        return ['dashboard', 'purchases', 'suppliers', 'products'].includes(view);
+        return ['dashboard', 'purchases', 'suppliers', 'products', 'categories'].includes(view);
       case 'SUPERVISOR':
-        return ['dashboard', 'returns', 'audit', 'sales', 'pos', 'promotions', 'inventory'].includes(view);
+        return ['dashboard', 'returns', 'audit', 'pos', 'promotions', 'inventory', 'online-orders'].includes(view);
       case 'GERENCIA':
-        return ['dashboard', 'reports', 'inventory', 'sales', 'purchases'].includes(view);
-      case 'CLIENTE':
-        return ['pos', 'online-orders'].includes(view);
+        return ['dashboard', 'reports', 'inventory', 'purchases'].includes(view);
       default:
         return false;
     }
   };
 
+  // Corporate Staff Login (/admin/login)
   const login = (username: string): boolean => {
-    const user = users.find((u) => u.username.toLowerCase() === username.toLowerCase());
-    if (user && user.status === 'ACTIVO') {
+    const user = users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
+    if (!user || user.status !== 'ACTIVO') {
+      addToast('error', 'Credenciales inválidas', 'Usuario no encontrado o cuenta desactivada.');
+      return false;
+    }
+
+    if (user.role === 'CLIENTE') {
+      addToast(
+        'warning',
+        'Portal Exclusivo de Personal',
+        'Las cuentas de cliente deben ingresar desde "Mi Cuenta" en la Tienda Online.'
+      );
+      return false;
+    }
+
+    const updatedUser = {
+      ...user,
+      lastLogin: new Date().toISOString().replace('T', ' ').slice(0, 16),
+    };
+    setCurrentUser(updatedUser);
+    setUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
+    addToast('success', 'Sesión corporativa iniciada', `Bienvenido a NS-Management, ${user.name}`);
+    logAudit('Seguridad', 'Inicio de sesión administrativo', user.username, `Rol asignado: ${user.role}`);
+
+    if (user.role === 'CAJERO') setActiveView('cash-register');
+    else if (user.role === 'ALMACENERO') setActiveView('inventory');
+    else if (user.role === 'COMPRADOR') setActiveView('purchases');
+    else setActiveView('dashboard');
+    return true;
+  };
+
+  // Storefront Customer Login (/mi-cuenta)
+  const loginClient = (identifier: string): boolean => {
+    const clean = identifier.trim().toLowerCase();
+    if (!clean) {
+      addToast('error', 'Campo requerido', 'Ingrese su usuario o correo electrónico.');
+      return false;
+    }
+
+    const matchedUser = users.find(
+      (u) =>
+        u.role === 'CLIENTE' &&
+        u.status === 'ACTIVO' &&
+        (u.username.toLowerCase() === clean || u.email.toLowerCase() === clean)
+    );
+
+    if (matchedUser) {
       const updatedUser = {
-        ...user,
+        ...matchedUser,
         lastLogin: new Date().toISOString().replace('T', ' ').slice(0, 16),
       };
       setCurrentUser(updatedUser);
-      setUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
-      addToast('success', 'Sesión iniciada', `Bienvenido al sistema NS-Management, ${user.name}`);
-      logAudit('Seguridad', 'Inicio de sesión exitoso', user.username, `Rol asignado: ${user.role}`);
-      
-      // Navigate to default view for role
-      if (user.role === 'CAJERO') setActiveView('cash-register');
-      else if (user.role === 'ALMACENERO') setActiveView('inventory');
-      else if (user.role === 'COMPRADOR') setActiveView('purchases');
-      else if (user.role === 'CLIENTE') setActiveView('pos');
-      else setActiveView('dashboard');
+      setUsers((prev) => prev.map((u) => (u.id === matchedUser.id ? updatedUser : u)));
+      addToast('success', 'Bienvenido a NOVAStyle', `Sesión iniciada como ${matchedUser.name}`);
       return true;
     }
-    addToast('error', 'Credenciales inválidas', 'Usuario no encontrado o cuenta desactivada.');
+
+    // Fallback: check existing Client directory by email
+    const matchedClient = clients.find(
+      (c) => c.status === 'ACTIVO' && c.email.toLowerCase() === clean
+    );
+    if (matchedClient) {
+      const clientUser: User = {
+        id: 'usr-cli-' + matchedClient.id,
+        name: matchedClient.name,
+        username: matchedClient.email.split('@')[0],
+        email: matchedClient.email,
+        role: 'CLIENTE',
+        status: 'ACTIVO',
+        lastLogin: new Date().toISOString().replace('T', ' ').slice(0, 16),
+        avatar: BRAND_MEDIA.avatarExecutivePortrait,
+        phone: matchedClient.phone,
+      };
+      setCurrentUser(clientUser);
+      setUsers((prev) => [clientUser, ...prev]);
+      addToast('success', 'Bienvenido a NOVAStyle', `Hola ${matchedClient.name}`);
+      return true;
+    }
+
+    addToast('error', 'Cuenta no encontrada', 'Verifique su usuario/correo o cree una cuenta nueva.');
     return false;
+  };
+
+  // Storefront Customer Registration
+  const registerClient = (data: {
+    name: string;
+    documentType: 'DNI' | 'RUC' | 'CE';
+    document: string;
+    phone: string;
+    email: string;
+    address: string;
+    username: string;
+  }): { success: boolean; error?: string } => {
+    const cleanUsername = data.username.trim().toLowerCase();
+    const cleanEmail = data.email.trim().toLowerCase();
+
+    if (!data.name.trim() || !cleanUsername || !cleanEmail) {
+      return { success: false, error: 'Nombre, usuario y correo electrónico son obligatorios.' };
+    }
+
+    const existsUser = users.some(
+      (u) => u.username.toLowerCase() === cleanUsername || u.email.toLowerCase() === cleanEmail
+    );
+    if (existsUser) {
+      addToast('error', 'Usuario ya registrado', 'El usuario o correo ya tiene una cuenta activa.');
+      return { success: false, error: 'El usuario o correo electrónico ya está registrado.' };
+    }
+
+    const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    const newClient: Client = {
+      id: 'cli-' + Date.now(),
+      name: data.name.trim(),
+      documentType: data.documentType,
+      document: data.document.trim() || '00000000',
+      phone: data.phone.trim(),
+      email: cleanEmail,
+      address: data.address.trim() || 'Lima, Perú',
+      totalPurchases: 0,
+      totalSpent: 0,
+      status: 'ACTIVO',
+    };
+
+    const newUser: User = {
+      id: 'usr-cli-' + Date.now(),
+      name: data.name.trim(),
+      username: cleanUsername,
+      email: cleanEmail,
+      role: 'CLIENTE',
+      status: 'ACTIVO',
+      lastLogin: nowStr,
+      avatar: BRAND_MEDIA.avatarExecutivePortrait,
+      phone: data.phone.trim(),
+    };
+
+    setClients((prev) => [newClient, ...prev]);
+    setUsers((prev) => [newUser, ...prev]);
+    setCurrentUser(newUser);
+    addToast('success', 'Cuenta creada', `Bienvenido a la tienda NOVAStyle, ${newUser.name}`);
+    return { success: true };
+  };
+
+  const updateOwnClientProfile = (data: {
+    name: string;
+    phone: string;
+    email: string;
+    address: string;
+    documentType: 'DNI' | 'RUC' | 'CE';
+    document: string;
+  }): boolean => {
+    if (!currentUser || currentUser.role !== 'CLIENTE') return false;
+    const oldEmail = currentUser.email.toLowerCase();
+
+    const updatedUser: User = {
+      ...currentUser,
+      name: data.name.trim(),
+      phone: data.phone.trim(),
+      email: data.email.trim().toLowerCase(),
+    };
+    setCurrentUser(updatedUser);
+    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
+
+    setClients((prev) => {
+      const idx = prev.findIndex((c) => c.email.toLowerCase() === oldEmail);
+      if (idx >= 0) {
+        return prev.map((c, i) =>
+          i === idx
+            ? {
+                ...c,
+                name: data.name.trim(),
+                phone: data.phone.trim(),
+                email: data.email.trim().toLowerCase(),
+                address: data.address.trim(),
+                documentType: data.documentType,
+                document: data.document.trim(),
+              }
+            : c
+        );
+      }
+      return [
+        {
+          id: 'cli-' + Date.now(),
+          name: data.name.trim(),
+          documentType: data.documentType,
+          document: data.document.trim(),
+          phone: data.phone.trim(),
+          email: data.email.trim().toLowerCase(),
+          address: data.address.trim(),
+          totalPurchases: 0,
+          totalSpent: 0,
+          status: 'ACTIVO',
+        },
+        ...prev,
+      ];
+    });
+
+    addToast('success', 'Perfil actualizado', 'Tus datos de envío y facturación han sido guardados.');
+    return true;
   };
 
   const logout = () => {
     if (currentUser) {
-      logAudit('Seguridad', 'Cierre de sesión', currentUser.username, `Cierre voluntario de sesión`);
+      logAudit('Seguridad', 'Cierre de sesión', currentUser.username, 'Cierre voluntario de sesión');
     }
     setCurrentUser(null);
-    addToast('info', 'Sesión cerrada', 'Has salido del sistema de forma segura.');
+    addToast('info', 'Sesión cerrada', 'Has salido de tu cuenta de forma segura.');
   };
 
   const switchRole = (newRole: Role) => {
+    if (newRole === 'CLIENTE') {
+      addToast('warning', 'Acceso de Cliente', 'El perfil Cliente solo opera en la Tienda Online.');
+      return;
+    }
     const match = users.find((u) => u.role === newRole && u.status === 'ACTIVO') || {
       id: 'usr-temp-' + newRole,
       name: `Usuario ${newRole}`,
@@ -397,27 +703,326 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: newRole,
       status: 'ACTIVO' as const,
       lastLogin: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      avatar: BRAND_MEDIA.avatarExecutivePortrait,
     };
     setCurrentUser(match);
     addToast('info', 'Rol actualizado', `Has cambiado al perfil: ${newRole}`);
     logAudit('Usuarios', 'Cambio rápido de perfil', newRole, `Sesión simulada para el rol ${newRole}`);
 
-    // If new role doesn't have access to current active view, switch to authorized view
-    if (!hasAccessToView(activeView)) {
+    // Recompute authorization against newRole explicitly
+    const allowedByNewRole: Record<Role, ActiveView[]> = {
+      ADMINISTRADOR: [],
+      VENDEDOR: ['dashboard', 'pos', 'products', 'categories', 'clients', 'promotions'],
+      CAJERO: ['dashboard', 'cash-register', 'pos'],
+      ALMACENERO: ['dashboard', 'inventory', 'purchases'],
+      COMPRADOR: ['dashboard', 'purchases', 'suppliers', 'products', 'categories'],
+      SUPERVISOR: ['dashboard', 'returns', 'audit', 'pos', 'promotions', 'inventory', 'online-orders'],
+      GERENCIA: ['dashboard', 'reports', 'inventory', 'purchases'],
+      CLIENTE: [],
+    };
+    if (newRole !== 'ADMINISTRADOR' && !allowedByNewRole[newRole].includes(activeView)) {
       if (newRole === 'CAJERO') setActiveView('cash-register');
       else if (newRole === 'ALMACENERO') setActiveView('inventory');
       else if (newRole === 'COMPRADOR') setActiveView('purchases');
-      else if (newRole === 'CLIENTE') setActiveView('pos');
       else setActiveView('dashboard');
     }
   };
 
-  // CU-01 Registrar/Editar Producto y Variantes (Valida no duplicar SKU)
+  // Storefront Cart Operations
+  const addToCart = (item: Omit<CartItem, 'quantity'>, quantity = 1): boolean => {
+    const prod = products.find((p) => p.id === item.productId && p.status === 'ACTIVO');
+    const variant = prod?.variants.find((v) => v.id === item.variantId);
+    if (!prod || !variant || variant.stock <= 0) {
+      addToast('error', 'Sin stock disponible', 'La talla seleccionada se encuentra agotada.');
+      return false;
+    }
+
+    const existing = cart.find((c) => c.variantId === item.variantId);
+    const currentQty = existing ? existing.quantity : 0;
+    const requestedTotal = currentQty + quantity;
+
+    if (requestedTotal > variant.stock) {
+      addToast(
+        'warning',
+        'Stock máximo alcanzado',
+        `Solo quedan ${variant.stock} unidades disponibles de ${item.productName} (${item.variantDesc}).`
+      );
+      return false;
+    }
+
+    setCart((prev) => {
+      if (existing) {
+        return prev.map((c) =>
+          c.variantId === item.variantId ? { ...c, quantity: requestedTotal } : c
+        );
+      }
+      return [...prev, { ...item, quantity }];
+    });
+
+    addToast('success', 'Agregado a la bolsa', `${item.productName} (${item.variantDesc}) x${quantity}`);
+    return true;
+  };
+
+  const updateCartQuantity = (variantId: string, quantity: number) => {
+    if (quantity <= 0) {
+      setCart((prev) => prev.filter((c) => c.variantId !== variantId));
+      return;
+    }
+    const variant = products.flatMap((p) => p.variants).find((v) => v.id === variantId);
+    const maxStock = variant ? variant.stock : quantity;
+    const capped = Math.min(quantity, maxStock);
+    if (quantity > maxStock) {
+      addToast('warning', 'Límite de stock', `Disponibilidad máxima actual: ${maxStock} unidades.`);
+    }
+    setCart((prev) =>
+      prev.map((c) => (c.variantId === variantId ? { ...c, quantity: capped } : c))
+    );
+  };
+
+  const removeFromCart = (variantId: string) => {
+    setCart((prev) => prev.filter((c) => c.variantId !== variantId));
+  };
+
+  const clearCart = () => {
+    setCart([]);
+    setAppliedPromoCode('');
+  };
+
+  // Storefront Checkout -> creates live OnlineOrder + Sale + InventoryMovement + Client stats
+  const placeOnlineOrder = (checkoutData: {
+    clientName: string;
+    clientEmail: string;
+    clientPhone: string;
+    deliveryAddress: string;
+    clientDocType?: 'DNI' | 'RUC' | 'CE';
+    clientDoc?: string;
+    paymentMethod: string;
+    promoCode?: string;
+    notes?: string;
+  }): { success: boolean; order?: OnlineOrder; error?: string } => {
+    if (cart.length === 0) {
+      return { success: false, error: 'Tu bolsa de compras está vacía.' };
+    }
+
+    // 1. Validate stock
+    for (const item of cart) {
+      const prod = products.find((p) => p.id === item.productId && p.status === 'ACTIVO');
+      const variant = prod?.variants.find((v) => v.id === item.variantId);
+      if (!prod || !variant) {
+        return { success: false, error: `El producto ${item.productName} ya no está disponible.` };
+      }
+      if (item.quantity > variant.stock) {
+        return {
+          success: false,
+          error: `Stock insuficiente para ${item.productName} (${item.variantDesc}). Disponible: ${variant.stock}.`,
+        };
+      }
+    }
+
+    const grossSubtotal = cart.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
+    let totalDiscount = 0;
+    const usedPromoCode = (checkoutData.promoCode || appliedPromoCode || '').trim().toUpperCase();
+
+    if (usedPromoCode) {
+      const promo = promotions.find((p) => p.code.toUpperCase() === usedPromoCode);
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (!promo || promo.status !== 'ACTIVA' || promo.endDate < todayStr || promo.startDate > todayStr) {
+        addToast('error', 'Cupón inválido o vencido', `El código ${usedPromoCode} no se encuentra vigente.`);
+        return { success: false, error: `El código promocional ${usedPromoCode} no está vigente.` };
+      }
+      if (promo.minPurchaseAmount && grossSubtotal < promo.minPurchaseAmount) {
+        addToast(
+          'warning',
+          'Mínimo no alcanzado',
+          `El cupón ${promo.code} requiere compras desde ${storeSettings.currency} ${promo.minPurchaseAmount.toFixed(2)}.`
+        );
+        return {
+          success: false,
+          error: `Compra mínima de ${storeSettings.currency} ${promo.minPurchaseAmount.toFixed(2)} requerida.`,
+        };
+      }
+      if (promo.type === 'PORCENTAJE') {
+        totalDiscount = Number(((grossSubtotal * promo.value) / 100).toFixed(2));
+      } else if (promo.type === 'MONTO_FIJO') {
+        totalDiscount = Number(Math.min(promo.value, grossSubtotal).toFixed(2));
+      }
+    }
+
+    const netSubtotal = Number(Math.max(0, grossSubtotal - totalDiscount).toFixed(2));
+    const shippingFee = netSubtotal >= 299 ? 0 : 15.0;
+    const total = Number((netSubtotal + shippingFee).toFixed(2));
+
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].slice(0, 5);
+
+    const orderNum = `PED-2026-${(onlineOrders.length + 101).toString().padStart(3, '0')}`;
+    const saleNum = `${storeSettings.ticketPrefix}-${(sales.length + 420).toString().padStart(6, '0')}`;
+
+    // Resolve or create client record
+    const emailLower = checkoutData.clientEmail.trim().toLowerCase();
+    const existingClient = clients.find((c) => c.email.toLowerCase() === emailLower);
+    const resolvedClientId = existingClient ? existingClient.id : 'cli-' + Date.now();
+
+    if (existingClient) {
+      setClients((prev) =>
+        prev.map((c) =>
+          c.id === existingClient.id
+            ? {
+                ...c,
+                totalPurchases: (c.totalPurchases || 0) + 1,
+                totalSpent: Number(((c.totalSpent || 0) + total).toFixed(2)),
+                lastPurchaseDate: dateStr,
+                address: checkoutData.deliveryAddress || c.address,
+                phone: checkoutData.clientPhone || c.phone,
+              }
+            : c
+        )
+      );
+    } else {
+      const createdClient: Client = {
+        id: resolvedClientId,
+        name: checkoutData.clientName.trim(),
+        documentType: checkoutData.clientDocType || 'DNI',
+        document: checkoutData.clientDoc?.trim() || '00000000',
+        phone: checkoutData.clientPhone.trim(),
+        email: emailLower,
+        address: checkoutData.deliveryAddress.trim(),
+        totalPurchases: 1,
+        totalSpent: total,
+        lastPurchaseDate: dateStr,
+        status: 'ACTIVO',
+      };
+      setClients((prev) => [createdClient, ...prev]);
+    }
+
+    // Deduct stock and generate Kardex movements
+    const newMovements: InventoryMovement[] = [];
+    const updatedProducts = products.map((prod) => {
+      let modified = false;
+      const updatedVariants = prod.variants.map((v) => {
+        const cartLine = cart.find((c) => c.variantId === v.id);
+        if (cartLine) {
+          const prevStock = v.stock;
+          const nextStock = prevStock - cartLine.quantity;
+          modified = true;
+
+          newMovements.push({
+            id: 'mov-' + Date.now() + Math.random().toString().slice(2, 5),
+            date: dateStr,
+            time: timeStr,
+            type: 'VENTA',
+            productId: prod.id,
+            productName: prod.name,
+            variantId: v.id,
+            variantDesc: `${v.size} / ${v.color}`,
+            sku: v.sku,
+            quantity: -cartLine.quantity,
+            previousStock: prevStock,
+            newStock: nextStock,
+            userId: currentUser?.id || resolvedClientId,
+            userName: checkoutData.clientName,
+            reference: `Pedido ${orderNum}`,
+            reason: 'Compra en Tienda Online NOVAStyle',
+          });
+
+          return { ...v, stock: nextStock };
+        }
+        return v;
+      });
+      return modified ? { ...prod, variants: updatedVariants } : prod;
+    });
+
+    setProducts(updatedProducts);
+    setInventoryMovements((prev) => [...newMovements, ...prev]);
+
+    const orderItems: SaleItem[] = cart.map((c) => ({
+      variantId: c.variantId,
+      productId: c.productId,
+      productName: c.productName,
+      variantDesc: c.variantDesc,
+      sku: c.sku,
+      quantity: c.quantity,
+      unitPrice: c.unitPrice,
+      subtotal: Number((c.unitPrice * c.quantity).toFixed(2)),
+      discount: 0,
+    }));
+
+    const newOrder: OnlineOrder = {
+      id: 'ord-' + Date.now(),
+      orderNumber: orderNum,
+      clientId: resolvedClientId,
+      clientName: checkoutData.clientName.trim(),
+      clientEmail: emailLower,
+      clientPhone: checkoutData.clientPhone.trim(),
+      deliveryAddress: checkoutData.deliveryAddress.trim(),
+      date: `${dateStr} ${timeStr}`,
+      items: orderItems,
+      subtotal: netSubtotal,
+      shippingFee,
+      total,
+      paymentMethod: checkoutData.paymentMethod,
+      status: 'PENDIENTE',
+      notes: checkoutData.notes?.trim() || undefined,
+    };
+
+    setOnlineOrders((prev) => [newOrder, ...prev]);
+
+    // Also record online Sale so Admin Dashboard & Reports reflect real-time omnichannel totals
+    const tax = Number((total - total / (1 + storeSettings.taxRate)).toFixed(2));
+    const saleSubtotal = Number((total - tax).toFixed(2));
+    const paymentEnum: PaymentMethod = checkoutData.paymentMethod.toLowerCase().includes('yape') ||
+      checkoutData.paymentMethod.toLowerCase().includes('plin')
+      ? 'YAPE_PLIN'
+      : 'TARJETA';
+
+    const newSale: Sale = {
+      id: 'sal-' + Date.now(),
+      saleNumber: saleNum,
+      date: dateStr,
+      time: timeStr,
+      channel: 'ONLINE',
+      clientId: resolvedClientId,
+      clientName: checkoutData.clientName.trim(),
+      clientDoc: checkoutData.clientDoc?.trim() || '00000000',
+      clientDocType: checkoutData.clientDocType || 'DNI',
+      items: orderItems,
+      subtotal: saleSubtotal,
+      discount: totalDiscount,
+      tax,
+      total,
+      paymentMethod: paymentEnum,
+      paymentStatus: 'APROBADO',
+      sellerId: 'online-store',
+      sellerName: 'Tienda Online NOVAStyle',
+      promotionCode: usedPromoCode || undefined,
+      status: 'COMPLETADA',
+      receiptType: checkoutData.clientDocType === 'RUC' ? 'FACTURA' : 'BOLETA',
+    };
+
+    setSales((prev) => [newSale, ...prev]);
+    logAudit(
+      'Tienda Online',
+      'Nuevo pedido confirmado',
+      orderNum,
+      `Pedido de ${checkoutData.clientName} por ${storeSettings.currency} ${total.toFixed(2)} (${checkoutData.paymentMethod})`
+    );
+
+    setCart([]);
+    setAppliedPromoCode('');
+    addToast('success', 'Pedido Confirmado', `Tu pedido ${orderNum} fue registrado con éxito.`);
+
+    return { success: true, order: newOrder };
+  };
+
+  // CU-01 Registrar/Editar Producto y Variantes
   const saveProduct = (
     productData: Omit<Product, 'id' | 'createdAt'> & { id?: string }
   ): { success: boolean; error?: string } => {
-    // Validate uniqueness of SKUs
+    if (!requireStaffAccess('Gestión de Productos')) {
+      return { success: false, error: 'Acceso denegado' };
+    }
+
     const allExistingVariants = products
       .filter((p) => p.id !== productData.id)
       .flatMap((p) => p.variants);
@@ -438,7 +1043,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (productData.id) {
-      // Update
       setProducts((prev) =>
         prev.map((p) =>
           p.id === productData.id
@@ -456,7 +1060,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       logAudit('Productos', 'Modificación de producto', productData.code, `Actualizado: ${productData.name}`);
       addToast('success', 'Producto actualizado', `Se guardaron los cambios de ${productData.name}`);
     } else {
-      // Create new
       const newId = 'prod-' + (products.length + 1).toString().padStart(2, '0') + '-' + Date.now().toString().slice(-4);
       const newProduct: Product = {
         ...productData,
@@ -476,6 +1079,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteProduct = (id: string) => {
+    if (!requireStaffAccess('Eliminar Producto')) return;
     const prod = products.find((p) => p.id === id);
     if (!prod) return;
     setProducts((prev) => prev.filter((p) => p.id !== id));
@@ -483,11 +1087,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('info', 'Producto eliminado', `Se eliminó el producto ${prod.name}`);
   };
 
+  // Categories CRUD (Admin / Productos)
+  const saveCategory = (
+    catData: Omit<CategoryItem, 'id' | 'slug'> & { id?: string; slug?: string }
+  ): { success: boolean; error?: string } => {
+    if (!requireStaffAccess('Gestión de Categorías')) {
+      return { success: false, error: 'Acceso denegado' };
+    }
+    const nameTrimmed = catData.name.trim();
+    if (!nameTrimmed) {
+      return { success: false, error: 'El nombre de la categoría es obligatorio.' };
+    }
+    const duplicate = categories.some(
+      (c) => c.id !== catData.id && c.name.toLowerCase() === nameTrimmed.toLowerCase()
+    );
+    if (duplicate) {
+      addToast('error', 'Categoría duplicada', `Ya existe una categoría llamada "${nameTrimmed}".`);
+      return { success: false, error: 'Nombre de categoría duplicado' };
+    }
+
+    const computedSlug = catData.slug?.trim() || slugify(nameTrimmed);
+    const safeImage = resolveSafeMediaUrl(catData.image, nameTrimmed) || PRODUCT_MEDIA_BY_CATEGORY['Ropa Hombre'];
+
+    if (catData.id) {
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === catData.id
+            ? { ...c, name: nameTrimmed, slug: computedSlug, description: catData.description, image: safeImage, status: catData.status }
+            : c
+        )
+      );
+      logAudit('Categorías', 'Modificación de categoría', computedSlug, `Actualizada: ${nameTrimmed}`);
+      addToast('success', 'Categoría actualizada', `Cambios guardados para ${nameTrimmed}`);
+    } else {
+      const newCat: CategoryItem = {
+        id: 'cat-' + Date.now(),
+        name: nameTrimmed,
+        slug: computedSlug,
+        description: catData.description,
+        image: safeImage,
+        status: catData.status,
+      };
+      setCategories((prev) => [...prev, newCat]);
+      logAudit('Categorías', 'Nueva categoría', computedSlug, `Creada: ${nameTrimmed}`);
+      addToast('success', 'Categoría creada', `${nameTrimmed} ya está disponible en el catálogo.`);
+    }
+
+    return { success: true };
+  };
+
+  const toggleCategoryStatus = (id: string) => {
+    if (!requireStaffAccess('Estado de Categoría')) return;
+    setCategories((prev) =>
+      prev.map((c) => {
+        if (c.id === id) {
+          const next = c.status === 'ACTIVA' ? 'INACTIVA' : 'ACTIVA';
+          logAudit('Categorías', 'Cambio estado categoría', c.slug, `${c.name} -> ${next}`);
+          addToast('info', 'Estado actualizado', `Categoría ${c.name} ahora está ${next}`);
+          return { ...c, status: next };
+        }
+        return c;
+      })
+    );
+  };
+
   // CU-02 Registrar Recepción de Mercadería
   const receivePurchaseOrder = (
     poId: string,
     receivedNotes?: string
   ): { success: boolean; error?: string } => {
+    if (!requireStaffAccess('Recepción de Mercadería')) {
+      return { success: false, error: 'Acceso denegado' };
+    }
     const po = purchaseOrders.find((p) => p.id === poId);
     if (!po) {
       return { success: false, error: 'Orden de compra no encontrada' };
@@ -503,7 +1174,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const dateStr = now.toISOString().split('T')[0];
     const timeStr = now.toTimeString().split(' ')[0].slice(0, 5);
 
-    // 1. Update product stock for each item in the order
     const newMovements: InventoryMovement[] = [];
     const updatedProducts = products.map((prod) => {
       let modified = false;
@@ -545,7 +1215,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setProducts(updatedProducts);
     setInventoryMovements((prev) => [...newMovements, ...prev]);
 
-    // 2. Mark PO as RECIBIDA
     setPurchaseOrders((prev) =>
       prev.map((p) =>
         p.id === poId
@@ -561,7 +1230,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
 
-    // 3. Log Audit
     logAudit(
       'Compras / Inventario',
       'CU-02 Registrar Recepción',
@@ -579,6 +1247,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const createPurchaseOrder = (poData: Omit<PurchaseOrder, 'id' | 'orderNumber' | 'status'>) => {
+    if (!requireStaffAccess('Generar Orden de Compra')) return;
     const nextNum = (purchaseOrders.length + 1).toString().padStart(3, '0');
     const newPO: PurchaseOrder = {
       ...poData,
@@ -592,7 +1261,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('success', 'Orden de compra emitida', `Se generó la orden ${newPO.orderNumber} exitosamente.`);
   };
 
-  // CU-03 Registrar Venta con todas las validaciones de negocio
+  // CU-03 Registrar Venta (POS Presencial)
   const processSale = (saleData: {
     channel: 'PRESENCIAL' | 'ONLINE';
     clientId: string;
@@ -603,20 +1272,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     cashReceived?: number;
     receiptType: 'BOLETA' | 'FACTURA' | 'TICKET';
   }): { success: boolean; sale?: Sale; error?: string } => {
-    // Regla 5: Validar que la caja esté abierta si la venta es presencial
+    if (!requireStaffAccess('Registrar Venta POS')) {
+      return { success: false, error: 'Acceso denegado' };
+    }
+
     if (saleData.channel === 'PRESENCIAL' && (!cashRegister.isOpen || cashRegister.status !== 'ABIERTA')) {
       addToast('error', 'Caja Cerrada', 'No se pueden registrar ventas presenciales mientras la caja se encuentre cerrada.');
       return { success: false, error: 'La caja está cerrada. Debe abrir la caja antes de vender.' };
     }
 
-    // Regla 4: No confirmar venta si el pago fue rechazado
     if (saleData.paymentStatus === 'RECHAZADO') {
       logAudit('Ventas / Pagos', 'Pago rechazado por pasarela', 'Intento de venta cancelado', `Método: ${saleData.paymentMethod}`);
       addToast('error', 'Pago Rechazado', 'La transacción fue denegada por la entidad de pago. No se concretó la venta.');
       return { success: false, error: 'El pago fue rechazado. No se completó la venta.' };
     }
 
-    // Regla 1: Validar stock disponible
     for (const item of saleData.items) {
       let foundStock = 0;
       let variantFound = false;
@@ -640,7 +1310,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // Client verification
     const client = clients.find((c) => c.id === saleData.clientId) || {
       id: 'cli-generic',
       name: 'Cliente Mostrador / Venta Rápida',
@@ -648,11 +1317,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       documentType: 'DNI' as const,
     };
 
-    // Calculate subtotal, discount, tax, total
     const grossTotal = saleData.items.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0);
     let totalDiscount = 0;
 
-    // Regla 2: Validar promoción si existe
     if (saleData.promotionCode) {
       const promo = promotions.find((p) => p.code.toUpperCase() === saleData.promotionCode?.toUpperCase());
       const nowStr = new Date().toISOString().split('T')[0];
@@ -665,7 +1332,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else if (promo.minPurchaseAmount && grossTotal < promo.minPurchaseAmount) {
         addToast('warning', 'Mínimo no alcanzado', `Esta promoción requiere una compra mínima de S/ ${promo.minPurchaseAmount.toFixed(2)}.`);
       } else {
-        // Apply discount
         if (promo.type === 'PORCENTAJE') {
           totalDiscount = (grossTotal * promo.value) / 100;
         } else if (promo.type === 'MONTO_FIJO') {
@@ -676,11 +1342,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const netTotal = Math.max(0, grossTotal - totalDiscount);
-    // IGV 18% calculation
     const tax = Number((netTotal - netTotal / (1 + storeSettings.taxRate)).toFixed(2));
     const subtotal = Number((netTotal - tax).toFixed(2));
 
-    // Regla 8 & 14: Descontar stock y registrar movimiento Kardex
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
     const timeStr = now.toTimeString().split(' ')[0].slice(0, 5);
@@ -728,11 +1392,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setProducts(updatedProducts);
     setInventoryMovements((prev) => [...newMovements, ...prev]);
 
-    // Calculate cash change
     const cashReceived = saleData.paymentMethod === 'EFECTIVO' ? saleData.cashReceived || netTotal : undefined;
     const change = cashReceived !== undefined ? Math.max(0, cashReceived - netTotal) : undefined;
 
-    // Create Sale record
     const newSale: Sale = {
       id: 'sal-' + Date.now(),
       saleNumber: saleNum,
@@ -761,7 +1423,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setSales((prev) => [newSale, ...prev]);
 
-    // Update Client purchase metrics
     setClients((prev) =>
       prev.map((c) =>
         c.id === client.id
@@ -775,7 +1436,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
 
-    // Update Cash Register totals if presencial
     if (saleData.channel === 'PRESENCIAL') {
       setCashRegister((prev) => {
         const isCash = saleData.paymentMethod === 'EFECTIVO';
@@ -795,7 +1455,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     }
 
-    // Regla 7: Auditoría
     logAudit(
       'Ventas',
       'CU-03 Registrar Venta',
@@ -816,7 +1475,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     reason: string;
     resolution: 'CAMBIO' | 'DEVOLUCION_EFECTIVO' | 'NOTA_CREDITO';
   }): { success: boolean; requiresApproval?: boolean; error?: string } => {
-    // Regla 3: Validar que corresponda a una venta existente
+    if (!requireStaffAccess('Registrar Devolución')) {
+      return { success: false, error: 'Acceso denegado' };
+    }
+
     const sale = sales.find((s) => s.id === returnData.saleId || s.saleNumber === returnData.saleId);
     if (!sale) {
       addToast('error', 'Venta no encontrada', 'La venta indicada no existe en el registro del sistema.');
@@ -835,7 +1497,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const refundAmount = Number((item.unitPrice * returnData.quantity).toFixed(2));
-    // Regla 6: Si el monto excede S/ 200 o el usuario no es SUPERVISOR/ADMIN, requiere autorización
     const needsApproval = refundAmount > 200 && currentUser?.role !== 'SUPERVISOR' && currentUser?.role !== 'ADMINISTRADOR';
 
     const now = new Date();
@@ -872,7 +1533,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setReturns((prev) => [newRecord, ...prev]);
 
     if (!needsApproval) {
-      // Regla 8: Reintegrar stock al inventario
       const updatedProducts = products.map((p) => {
         if (p.id === item.productId) {
           return {
@@ -882,7 +1542,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 const prev = v.stock;
                 const next = prev + returnData.quantity;
 
-                // Log movement
                 setInventoryMovements((movs) => [
                   {
                     id: 'mov-' + Date.now() + Math.random().toString().slice(2, 5),
@@ -916,7 +1575,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       setProducts(updatedProducts);
 
-      // If money refunded in cash and cash register open, adjust
       if (returnData.resolution === 'DEVOLUCION_EFECTIVO' && cashRegister.isOpen) {
         setCashRegister((prev) => ({
           ...prev,
@@ -952,6 +1610,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const approveReturn = (returnId: string): { success: boolean; error?: string } => {
+    if (!requireStaffAccess('Aprobar Devolución')) {
+      return { success: false, error: 'Acceso denegado' };
+    }
     const ret = returns.find((r) => r.id === returnId);
     if (!ret) return { success: false, error: 'Registro de devolución no encontrado' };
     if (ret.isApproved) return { success: false, error: 'Esta devolución ya fue aprobada' };
@@ -960,7 +1621,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const dateStr = now.toISOString().split('T')[0];
     const timeStr = now.toTimeString().split(' ')[0].slice(0, 5);
 
-    // Update stock
     const updatedProducts = products.map((p) => {
       if (p.id === ret.productId) {
         return {
@@ -1025,6 +1685,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // CU-07 Abrir / Cerrar Caja
   const openCashRegister = (initialCash: number): { success: boolean; error?: string } => {
+    if (!requireStaffAccess('Apertura de Caja')) {
+      return { success: false, error: 'Acceso denegado' };
+    }
     if (cashRegister.isOpen && cashRegister.status === 'ABIERTA') {
       addToast('warning', 'Caja ya abierta', 'La caja ya se encuentra en estado abierta.');
       return { success: false, error: 'La caja ya está abierta' };
@@ -1058,6 +1721,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const closeCashRegister = (
     declaredCash: number
   ): { success: boolean; difference: number; error?: string } => {
+    if (!requireStaffAccess('Cierre de Caja')) {
+      return { success: false, difference: 0, error: 'Acceso denegado' };
+    }
     if (!cashRegister.isOpen || cashRegister.status !== 'ABIERTA') {
       addToast('error', 'Caja ya cerrada', 'La caja no se encuentra abierta.');
       return { success: false, difference: 0, error: 'La caja no está abierta' };
@@ -1101,6 +1767,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // CU-09 Pedidos Online
   const updateOrderStatus = (orderId: string, newStatus: OnlineOrderStatus) => {
+    if (!requireStaffAccess('Actualizar Pedido Online')) return;
     const order = onlineOrders.find((o) => o.id === orderId);
     if (!order) return;
 
@@ -1118,7 +1785,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addToast('info', 'Pedido Actualizado', `Pedido ${order.orderNumber} pasó a ${newStatus}`);
   };
 
-  // Inventario manual (Entrada, Salida, Ajuste, Transferencia)
+  // Inventario manual
   const addManualInventoryMovement = (movement: {
     type: 'ENTRADA' | 'SALIDA' | 'AJUSTE' | 'TRANSFERENCIA';
     productId: string;
@@ -1126,6 +1793,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     quantity: number;
     reason: string;
   }): { success: boolean; error?: string } => {
+    if (!requireStaffAccess('Movimiento de Inventario')) {
+      return { success: false, error: 'Acceso denegado' };
+    }
     const prod = products.find((p) => p.id === movement.productId);
     if (!prod) return { success: false, error: 'Producto no encontrado' };
 
@@ -1193,6 +1863,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Promotion CRUD
   const savePromotion = (promoData: Omit<Promotion, 'id'> & { id?: string }) => {
+    if (!requireStaffAccess('Gestión de Promociones')) return;
     if (promoData.id) {
       setPromotions((prev) =>
         prev.map((p) => (p.id === promoData.id ? { ...p, ...promoData } : p))
@@ -1211,6 +1882,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const togglePromotionStatus = (id: string) => {
+    if (!requireStaffAccess('Estado de Promoción')) return;
     setPromotions((prev) =>
       prev.map((p) => {
         if (p.id === id) {
@@ -1226,6 +1898,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Supplier CRUD
   const saveSupplier = (supData: Omit<Supplier, 'id'> & { id?: string }) => {
+    if (!requireStaffAccess('Gestión de Proveedores')) return;
     if (supData.id) {
       setSuppliers((prev) =>
         prev.map((s) => (s.id === supData.id ? { ...s, ...supData } : s))
@@ -1247,6 +1920,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const saveClient = (
     clientData: Omit<Client, 'id' | 'totalPurchases' | 'totalSpent'> & { id?: string }
   ) => {
+    if (!requireStaffAccess('Gestión de Clientes')) return;
     if (clientData.id) {
       setClients((prev) =>
         prev.map((c) => (c.id === clientData.id ? { ...c, ...clientData } : c))
@@ -1268,6 +1942,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // User CRUD
   const saveUser = (userData: Omit<User, 'id' | 'lastLogin'> & { id?: string }) => {
+    if (!requireStaffAccess('Gestión de Usuarios')) return;
     if (userData.id) {
       setUsers((prev) =>
         prev.map((u) => (u.id === userData.id ? { ...u, ...userData } : u))
@@ -1287,6 +1962,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const toggleUserStatus = (id: string) => {
+    if (!requireStaffAccess('Estado de Usuario')) return;
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id === id) {
@@ -1302,8 +1978,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Reset demo state
   const resetAllData = () => {
+    if (!requireStaffAccess('Restaurar Demo')) return;
     localStorage.clear();
     setProducts(INITIAL_PRODUCTS);
+    setCategories(INITIAL_CATEGORIES);
     setSuppliers(INITIAL_SUPPLIERS);
     setClients(INITIAL_CLIENTS);
     setPromotions(INITIAL_PROMOTIONS);
@@ -1315,6 +1993,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStoreSettings(INITIAL_SETTINGS);
     setAuditLogs(INITIAL_AUDIT_LOGS);
     setUsers(INITIAL_USERS);
+    setCart([]);
+    setAppliedPromoCode('');
     setCurrentUser(INITIAL_USERS[0]);
     addToast('info', 'Datos Reiniciados', 'La base de datos se restauró a los valores de prueba originales.');
   };
@@ -1323,13 +2003,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         currentUser,
+        hasAdminAccess,
         activeView,
         setActiveView,
         login,
+        loginClient,
+        registerClient,
+        updateOwnClientProfile,
         logout,
         switchRole,
         hasAccessToView,
         products,
+        categories,
         suppliers,
         clients,
         promotions,
@@ -1342,11 +2027,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         auditLogs,
         returns,
         users,
+        cart,
+        appliedPromoCode,
+        setAppliedPromoCode,
+        addToCart,
+        updateCartQuantity,
+        removeFromCart,
+        clearCart,
+        placeOnlineOrder,
         toasts,
         addToast,
         removeToast,
         saveProduct,
         deleteProduct,
+        saveCategory,
+        toggleCategoryStatus,
         receivePurchaseOrder,
         createPurchaseOrder,
         processSale,

@@ -288,10 +288,33 @@ export interface StoreSettings {
   invoicePrefix: string;
 }
 
+export interface CategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  image: string;
+  status: 'ACTIVA' | 'INACTIVA';
+}
+
+export interface CartItem {
+  productId: string;
+  productName: string;
+  brand: string;
+  category: string;
+  image: string;
+  variantId: string;
+  variantDesc: string;
+  sku: string;
+  unitPrice: number;
+  quantity: number;
+}
+
 export type ActiveView =
   | 'dashboard'
   | 'pos'
   | 'products'
+  | 'categories'
   | 'inventory'
   | 'purchases'
   | 'cash-register'
