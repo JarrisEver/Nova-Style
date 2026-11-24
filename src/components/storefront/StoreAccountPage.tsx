@@ -345,7 +345,7 @@ export const StoreAccountPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </button>
 
-            <div className="pt-4 border-t border-zinc-100">
+            <div className="pt-4 border-t border-zinc-100 space-y-3">
               <button
                 type="button"
                 onClick={() => {
@@ -364,6 +364,17 @@ export const StoreAccountPage: React.FC = () => {
                 </div>
                 <ArrowRight className="w-4 h-4 text-red-600" />
               </button>
+
+              <div className="flex items-center justify-between px-1 pt-1 text-[11px] text-zinc-500">
+                <span>¿Eres parte del equipo NOVAStyle?</span>
+                <Link
+                  to="/admin/login"
+                  className="inline-flex items-center gap-1 font-semibold text-zinc-800 hover:text-red-600 transition"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-red-600" />
+                  <span>Portal Administrativo</span>
+                </Link>
+              </div>
             </div>
           </form>
         ) : (

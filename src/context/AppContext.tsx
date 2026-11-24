@@ -196,11 +196,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
 
+  const CATALOG_SEED_VERSION = '2026-11-v2';
+
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('ns_products');
+    const savedVersion = localStorage.getItem('ns_catalog_version');
     if (saved) {
       try {
         const parsed: Product[] = JSON.parse(saved);
+        if (savedVersion !== CATALOG_SEED_VERSION) {
+          const seedMap = new Map(INITIAL_PRODUCTS.map((item) => [item.id, item]));
+          const existingIds = new Set(parsed.map((p) => p.id));
+          const updatedExisting = parsed.map((p) => {
+            const seedMatch = seedMap.get(p.id);
+            return {
+              ...p,
+              image: seedMatch ? seedMatch.image : resolveSafeMediaUrl(p.image, p.category),
+            };
+          });
+          const newSeeds = INITIAL_PRODUCTS.filter((item) => !existingIds.has(item.id));
+          localStorage.setItem('ns_catalog_version', CATALOG_SEED_VERSION);
+          return [...updatedExisting, ...newSeeds];
+        }
         return parsed.map((p) => ({
           ...p,
           image: resolveSafeMediaUrl(p.image, p.category),
@@ -209,6 +226,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return INITIAL_PRODUCTS;
       }
     }
+    localStorage.setItem('ns_catalog_version', CATALOG_SEED_VERSION);
     return INITIAL_PRODUCTS;
   });
 
@@ -217,10 +235,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed: CategoryItem[] = JSON.parse(saved);
-        return parsed.map((c) => ({
-          ...c,
-          image: resolveSafeMediaUrl(c.image, c.name),
-        }));
+        const seedCatMap = new Map(INITIAL_CATEGORIES.map((c) => [c.id, c]));
+        return parsed.map((c) => {
+          const seedCat = seedCatMap.get(c.id);
+          return {
+            ...c,
+            image: seedCat ? seedCat.image : resolveSafeMediaUrl(c.image, c.name),
+          };
+        });
       } catch {
         return INITIAL_CATEGORIES;
       }
