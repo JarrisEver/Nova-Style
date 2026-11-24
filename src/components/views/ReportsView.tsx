@@ -318,14 +318,17 @@ export const ReportsView: React.FC = () => {
                   />
                   <YAxis tick={{ fontSize: 11, fill: '#52525b' }} stroke="#d4d4d8" />
                   <Tooltip
+                    cursor={{ fill: 'rgba(220, 38, 38, 0.08)' }}
                     formatter={(value: unknown) => [`${value} unidades`, 'Ventas']}
                     contentStyle={{
                       backgroundColor: '#09090B',
                       borderRadius: '8px',
                       border: '1px solid #27272a',
-                      color: '#fff',
+                      color: '#FFFFFF',
                       fontSize: '12px',
                     }}
+                    labelStyle={{ color: '#FFFFFF', fontWeight: 700, marginBottom: '2px' }}
+                    itemStyle={{ color: '#FCA5A5', fontWeight: 600 }}
                   />
                   <Bar dataKey="quantity" fill="#DC2626" radius={[4, 4, 0, 0]} />
                 </BarChart>

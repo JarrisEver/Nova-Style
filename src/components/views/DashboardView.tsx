@@ -38,6 +38,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  LabelList,
 } from 'recharts';
 import { ReceiptModal } from '../common/ReceiptModal';
 import { Sale } from '../../types';
@@ -163,6 +164,7 @@ export const DashboardView: React.FC = () => {
   const topProductsChartData = Object.keys(productSalesMap)
     .map((name) => ({
       name: name.length > 18 ? name.slice(0, 16) + '...' : name,
+      fullName: name,
       unidades: productSalesMap[name].qty,
       monto: Number(productSalesMap[name].total.toFixed(2)),
     }))
@@ -453,17 +455,19 @@ export const DashboardView: React.FC = () => {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" />
-                  <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#71717A" />
-                  <YAxis tick={{ fontSize: 11 }} stroke="#71717A" />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#52525B' }} stroke="#D4D4D8" />
+                  <YAxis tick={{ fontSize: 11, fill: '#52525B' }} stroke="#D4D4D8" />
                   <Tooltip
                     formatter={(value: any) => [`${storeSettings.currency} ${Number(value).toFixed(2)}`, 'Ventas']}
                     contentStyle={{
                       backgroundColor: '#09090B',
                       border: '1px solid #27272A',
                       borderRadius: '8px',
-                      color: '#fff',
+                      color: '#FFFFFF',
                       fontSize: '12px',
                     }}
+                    labelStyle={{ color: '#FFFFFF', fontWeight: 700, marginBottom: '2px' }}
+                    itemStyle={{ color: '#FCA5A5', fontWeight: 600 }}
                   />
                   <Area
                     type="monotone"
@@ -493,8 +497,8 @@ export const DashboardView: React.FC = () => {
                     data={categoryChartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={52}
-                    outerRadius={82}
+                    innerRadius={48}
+                    outerRadius={76}
                     paddingAngle={4}
                     dataKey="total"
                     label={({ name, percent }: { name?: string; percent?: number }) =>
@@ -511,9 +515,11 @@ export const DashboardView: React.FC = () => {
                       backgroundColor: '#09090B',
                       border: '1px solid #27272A',
                       borderRadius: '8px',
-                      color: '#fff',
+                      color: '#FFFFFF',
                       fontSize: '12px',
                     }}
+                    labelStyle={{ color: '#FFFFFF', fontWeight: 700, marginBottom: '2px' }}
+                    itemStyle={{ color: '#F4F4F5', fontWeight: 600 }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -530,21 +536,27 @@ export const DashboardView: React.FC = () => {
             </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProductsChartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={topProductsChartData} layout="vertical" margin={{ top: 5, right: 36, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E4E4E7" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} stroke="#71717A" />
-                  <YAxis dataKey="name" type="category" width={115} tick={{ fontSize: 11 }} stroke="#52525B" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#52525B' }} stroke="#D4D4D8" />
+                  <YAxis dataKey="name" type="category" width={125} tick={{ fontSize: 11, fill: '#18181B', fontWeight: 500 }} stroke="#D4D4D8" />
                   <Tooltip
+                    cursor={{ fill: 'rgba(220, 38, 38, 0.08)' }}
+                    labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
                     formatter={(value: any) => [`${value} unidades`, 'Volumen']}
                     contentStyle={{
                       backgroundColor: '#09090B',
                       border: '1px solid #27272A',
                       borderRadius: '8px',
-                      color: '#fff',
+                      color: '#FFFFFF',
                       fontSize: '12px',
                     }}
+                    labelStyle={{ color: '#FFFFFF', fontWeight: 700, marginBottom: '2px' }}
+                    itemStyle={{ color: '#F4F4F5', fontWeight: 600 }}
                   />
-                  <Bar dataKey="unidades" fill="#18181B" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="unidades" fill="#18181B" radius={[0, 4, 4, 0]}>
+                    <LabelList dataKey="unidades" position="right" fill="#18181B" fontSize={11} fontWeight={700} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -571,7 +583,7 @@ export const DashboardView: React.FC = () => {
                     data={inventoryStatusData}
                     cx="50%"
                     cy="50%"
-                    outerRadius={84}
+                    outerRadius={76}
                     dataKey="value"
                     label={({ name, value }) => `${name}: ${value}`}
                   >
@@ -585,11 +597,13 @@ export const DashboardView: React.FC = () => {
                       backgroundColor: '#09090B',
                       border: '1px solid #27272A',
                       borderRadius: '8px',
-                      color: '#fff',
+                      color: '#FFFFFF',
                       fontSize: '12px',
                     }}
+                    labelStyle={{ color: '#FFFFFF', fontWeight: 700, marginBottom: '2px' }}
+                    itemStyle={{ color: '#F4F4F5', fontWeight: 600 }}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={{ fontSize: '12px', color: '#18181B' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
